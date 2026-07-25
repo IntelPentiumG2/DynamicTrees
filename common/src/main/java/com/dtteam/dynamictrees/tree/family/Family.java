@@ -311,10 +311,24 @@ public class Family extends RegistryEntry<Family> implements Resettable<Family> 
     }
 
     protected Optional<BranchBlock> getBranchBlock(int index) {
+        if (!hasBranchEntry(index)) {
+            return Optional.empty();
+        }
         return Optionals.ofBlock(branches.get(index).getBlock());
     }
     protected Optional<Item> getBranchItem(int index) {
+        if (!hasBranchEntry(index)) {
+            return Optional.empty();
+        }
         return branches.get(index).getItem();
+    }
+
+    /**
+     * A family only allocates the stripped branch entry when it generates one, so the indexed
+     * accessors have to tolerate being asked for an entry that was never added.
+     */
+    private boolean hasBranchEntry(int index) {
+        return index >= 0 && index < branches.size();
     }
 
     public Optional<BranchBlock> getBranch() {
@@ -422,6 +436,9 @@ public class Family extends RegistryEntry<Family> implements Resettable<Family> 
      * @return Block of the primitive log.
      */
     public Optional<Block> getPrimitiveLog(int index) {
+        if (!hasBranchEntry(index)) {
+            return Optional.empty();
+        }
         return branches.get(index).getPrimitiveBlock();
     }
     public Optional<Block> getPrimitiveLog() {
