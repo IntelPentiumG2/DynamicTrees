@@ -164,11 +164,21 @@ public class Pod extends RegistryEntry<Pod> implements Resettable<Pod> {
      */
     public final void createBlock(@Nullable Identifier name, Block.Properties properties) {
         Identifier id = name == null ? this.getRegistryName() : name;
-        block = RegistryHandler.addBlock(id, () -> {
-            if (hasVariableOffset())
-                return new OffsetablePodBlock(id, properties, this);
-            else return new PodBlock(id, properties, this);
-        });
+        block = RegistryHandler.addBlock(id, () -> this.makeBlock(id, properties));
+    }
+
+    /**
+     * Builds the {@link PodBlock} for this pod. Override to supply a custom block; this is the
+     * extension point add-ons use for pods with bespoke placement, support rules or behaviour.
+     *
+     * @param id         the registry name the block will be registered under
+     * @param properties the properties of the block
+     * @return the block to register for this pod
+     */
+    protected PodBlock makeBlock(Identifier id, Block.Properties properties) {
+        if (hasVariableOffset())
+            return new OffsetablePodBlock(id, properties, this);
+        return new PodBlock(id, properties, this);
     }
 
     public MapColor getDefaultMapColor() {
