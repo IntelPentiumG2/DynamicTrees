@@ -4,6 +4,10 @@ import com.dtteam.dynamictrees.block.leaves.DynamicLeavesBlock;
 import com.dtteam.dynamictrees.block.leaves.LeavesProperties;
 import com.dtteam.dynamictrees.data.Generator;
 import net.minecraft.client.data.models.BlockModelGenerators;
+import net.minecraft.client.data.models.blockstates.MultiVariantGenerator;
+import net.minecraft.client.data.models.model.ModelLocationUtils;
+import net.minecraft.client.renderer.block.dispatch.Variant;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.level.block.Block;
 
 /**
@@ -16,7 +20,17 @@ public class PalmLeavesStateGenerator implements Generator<BlockModelGenerators,
 
     @Override
     public void generate(BlockModelGenerators generators, LeavesProperties input, Dependencies dependencies) {
-        generators.createTrivialCube(dependencies.get(LEAVES));
+        // The frond models have not been ported yet, so palm leaves fall back to a plain cube. Point
+        // that cube at the leaves model override, or failing that at the primitive leaves, rather
+        // than at a texture named after the dynamic block: nothing generates such a texture, so it
+        // resolved to the missing one.
+        final Identifier leavesModel = input.getModelPath(LeavesProperties.LEAVES)
+                .orElse(ModelLocationUtils.getModelLocation(dependencies.get(PRIMITIVE_LEAVES)));
+
+        generators.blockStateOutput.accept(
+                MultiVariantGenerator.dispatch(dependencies.get(LEAVES),
+                        BlockModelGenerators.variant(new Variant(leavesModel)))
+        );
 //        if (prov instanceof DTBlockStateProvider provider){
 //            Identifier defaultFrondsTexture = provider.block(IdentifierUtils.suffix(input.getRegistryName(), "_frond"));
 //            Identifier defaultCoreTexture = provider.block(IdentifierUtils.suffix(input.getRegistryName(), "_base"));
