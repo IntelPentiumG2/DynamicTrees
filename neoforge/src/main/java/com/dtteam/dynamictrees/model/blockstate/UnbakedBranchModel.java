@@ -4,6 +4,7 @@ import com.dtteam.dynamictrees.DynamicTrees;
 import com.dtteam.dynamictrees.block.branch.BranchBlock;
 import com.dtteam.dynamictrees.block.branch.ThickBranchBlock;
 import com.dtteam.dynamictrees.model.BranchMultiPartHolder;
+import com.dtteam.dynamictrees.model.TrunkCellParts;
 import com.dtteam.dynamictrees.model.parts.BranchModelPart;
 import com.dtteam.dynamictrees.tree.family.Family;
 import com.dtteam.dynamictrees.utility.IdentifierUtils;
@@ -108,11 +109,19 @@ public record UnbakedBranchModel(Identifier barkTexture, Identifier ringsTexture
         BranchMultiPartHolder trunksBark = new BranchMultiPartHolder(); // The trunk will always feature bark on its sides.
         BranchMultiPartHolder trunksRings = new BranchMultiPartHolder(); // The trunk will feature rings on its top and bottom.
 
+        // The same surface again, split by the block each face stands in, so that a trunk shell can
+        // draw its own slice. The whole-trunk bake above stays for the paths that have no world to
+        // look at, such as a falling tree.
+        TrunkCellParts cellBark = new TrunkCellParts();
+        TrunkCellParts cellRings = new TrunkCellParts();
+
         for (int radius = BranchBlock.MAX_RADIUS + 1; radius <= ThickBranchBlock.MAX_RADIUS_THICK; radius++) {
             trunksBark.putAllParts(radius, unbakedBark.bakeAllSides(baker, radius));
             trunksRings.putAllParts(radius, unbakedRings.bakeSides(baker, radius, EnumSet.of(Direction.UP, Direction.DOWN)));
+            unbakedBark.bakeCells(baker, radius, cellBark);
+            unbakedRings.bakeCells(baker, radius, cellRings);
         }
 
-        return new ThickBranchBlockStateModel(fallback, trunksBark, trunksRings);
+        return new ThickBranchBlockStateModel(fallback, trunksBark, trunksRings, cellBark, cellRings);
     }
 }

@@ -5,7 +5,9 @@ import com.dtteam.dynamictrees.client.TintSources.DendroPotionItemTintSource;
 import com.dtteam.dynamictrees.client.TintSources.StaffCrystalItemTintSource;
 import com.dtteam.dynamictrees.client.TintSources.StaffHandleItemTintSource;
 import com.dtteam.dynamictrees.data.BiGenerator;
+import com.dtteam.dynamictrees.data.builder.BasicLoaderBuilder;
 import com.dtteam.dynamictrees.data.builder.PottedSaplingLoaderBuilder;
+import com.dtteam.dynamictrees.model.blockstate.TrunkShellBlockStateModel;
 import com.dtteam.dynamictrees.registry.DTRegistries;
 import net.minecraft.client.data.models.BlockModelGenerators;
 import net.minecraft.client.data.models.ItemModelGenerators;
@@ -40,10 +42,13 @@ public class DTExtraModelGenerator implements BiGenerator<BlockModelGenerators, 
     }
 
     private static void generateTrunkShell(BlockModelGenerators blockModels) {
+        // The shell draws the slice of trunk standing in it, taking the geometry from the branch
+        // block at the trunk's core; the texture named here is only what it throws off as particles.
         blockModels.blockStateOutput.accept(
                 MultiVariantGenerator.dispatch(
                         DTRegistries.TRUNK_SHELL.get(),
-                        BlockModelGenerators.variant(new Variant(DynamicTrees.location("block/empty")))
+                        MultiVariant.of(new BasicLoaderBuilder(() -> new TrunkShellBlockStateModel.Unbaked(
+                                Identifier.withDefaultNamespace("block/oak_log"))))
                 )
         );
     }

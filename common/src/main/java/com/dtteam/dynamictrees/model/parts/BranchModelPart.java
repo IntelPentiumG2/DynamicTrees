@@ -3,6 +3,7 @@ package com.dtteam.dynamictrees.model.parts;
 import com.dtteam.dynamictrees.block.branch.BranchBlock;
 import com.dtteam.dynamictrees.model.BranchMultiPartHolder;
 import com.dtteam.dynamictrees.model.BranchMultiPartHolder.PartMap;
+import com.dtteam.dynamictrees.model.TrunkCellParts;
 import com.dtteam.dynamictrees.model.ModelHelper;
 import com.dtteam.dynamictrees.utility.CoordUtils;
 import com.google.common.collect.Maps;
@@ -218,6 +219,60 @@ public record BranchModelPart(QuadCollection quads, boolean useAmbientOcclusion,
             }
 
             return parts;
+        }
+
+        /**
+         * Bakes the trunk one cell at a time, each in the space of the block it occupies.
+         *
+         * <p>{@link #bakeSides} hands a block the faces of the cells <em>around</em> it, which is
+         * the same surface seen from the core outwards. Here each cell gets its own faces instead,
+         * shifted back into that block's own 0-16 space, so a trunk shell can draw the slice of
+         * trunk standing in it. Texture coordinates still come from the cell's place in the whole
+         * trunk, so the two bakes put the same pixels in the same place.
+         */
+        public void bakeCells(ModelBaker baker, int radius, TrunkCellParts into) {
+            AABB wholeVolume = new AABB(8 - radius, 0, 8 - radius, 8 + radius, 16, 8 + radius);
+
+            for (CoordUtils.Surround cell : cellsWithCore()) {
+                Vec3i offset = cell == null ? Vec3i.ZERO : cell.getOffset();
+                AABB boundary = new AABB(0, 0, 0, 16, 16, 16)
+                        .move(offset.getX() * 16, 0, offset.getZ() * 16)
+                        .intersect(wholeVolume);
+                if (boundary.getXsize() <= 0 || boundary.getYsize() <= 0 || boundary.getZsize() <= 0) {
+                    continue; // The trunk does not reach this cell at this radius.
+                }
+
+                Vector3f[] limits = ModelHelper.AABBLimits(
+                        boundary.move(-offset.getX() * 16, 0, -offset.getZ() * 16));
+
+                for (Direction face : Direction.values()) {
+                    if (isRings && face.getAxis() != Direction.Axis.Y) {
+                        continue; // Rings only cap the trunk.
+                    }
+                    float[] uvCoords = isRings
+                            ? getUvs(face, boundary, 48)
+                            : ModelHelper.modUV(ModelHelper.getUVs(boundary, face));
+
+                    Map<Direction, CuboidFace> mapFacesIn = Maps.newEnumMap(Direction.class);
+                    mapFacesIn.put(face, new CuboidFace(null, -1, material.toString(),
+                            new CuboidFace.UVs(uvCoords[0], uvCoords[1], uvCoords[2], uvCoords[3]),
+                            ModelHelper.getFaceQuadrant(Direction.Axis.Y, face)));
+
+                    CuboidModelElement element = new CuboidModelElement(limits[0], limits[1], mapFacesIn);
+                    QuadCollection.Builder builder = new QuadCollection.Builder();
+                    builder.addUnculledFace(
+                            ModelHelper.makeBakedQuad(baker, element, mapFacesIn.get(face), material, face));
+
+                    into.put(cell, face, radius, new BranchModelPart(builder.build(), true, material));
+                }
+            }
+        }
+
+        /** The eight surrounding cells plus the core, which has no {@link CoordUtils.Surround}. */
+        private static List<CoordUtils.Surround> cellsWithCore() {
+            List<CoordUtils.Surround> cells = new ArrayList<>(Arrays.asList(CoordUtils.Surround.values()));
+            cells.add(null);
+            return cells;
         }
 
         private @NotNull List<CuboidModelElement> generateTrunkParts(Direction face, ArrayList<Vec3i> offsets, AABB wholeVolume) {

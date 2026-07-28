@@ -1,4 +1,4 @@
-// 26.1.2	2026-05-19T21:59:21.301674424	Model Definitions - dynamictrees
+// 26.1.2	2026-07-28T14:00:04.704277431	Model Definitions - dynamictrees
 aed0fb7708785b5f2b1e0eefdbc26f0044b9614c assets/dynamictrees/blockstates/acacia_branch.json
 2606791521eac27fa77ebbeeea442b8073802a51 assets/dynamictrees/blockstates/acacia_leaves.json
 28a0cd7b38e1a854acd4f0c477573a9460811d82 assets/dynamictrees/blockstates/acacia_sapling.json
@@ -93,7 +93,7 @@ fdd60973c634659d2f75cc55dd4a65be91315df2 assets/dynamictrees/blockstates/strippe
 6649ad3a976a1a52020d80454d8f04b76136936a assets/dynamictrees/blockstates/stripped_warped_branch.json
 e32ecf1d0e1e82b3f67c7cdaf73e1f8060039ee1 assets/dynamictrees/blockstates/swamp_oak_sapling.json
 d6537a9525b4fd2205bc3b4ae295f638e69961a9 assets/dynamictrees/blockstates/tall_birch_sapling.json
-f723bc1d050b40db40c9f7c811c1d92997b06d4e assets/dynamictrees/blockstates/trunk_shell.json
+fcf621fd8e6680ac512b8e35b9e461bbd8d6b2e7 assets/dynamictrees/blockstates/trunk_shell.json
 fb23dcc7f1ff72e937ceffcee8247d0d5d882c49 assets/dynamictrees/blockstates/warped_branch.json
 10f0e1c6f07e005c85571a817fc37ac7e1296958 assets/dynamictrees/blockstates/warped_sapling.json
 ca7af799fc94823c3ca532a272fc4704b8bf7823 assets/dynamictrees/blockstates/warped_wart.json

@@ -357,7 +357,9 @@ public class TrunkShellBlock extends BlockWithDynamicHardness implements SimpleW
 
     @Override
     public RenderShape getRenderShape(BlockState state) {
-        return RenderShape.INVISIBLE;
+        // The shell draws the slice of trunk standing in it. Its model takes the geometry from the
+        // branch block at the trunk's core, which is the only place the tree's family is known.
+        return RenderShape.MODEL;
     }
 
     /** NeoForge override */
