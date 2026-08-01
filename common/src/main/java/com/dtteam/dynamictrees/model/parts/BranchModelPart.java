@@ -222,15 +222,21 @@ public record BranchModelPart(QuadCollection quads, boolean useAmbientOcclusion,
         }
 
         /**
-         * Bakes the trunk one cell at a time, each in the space of the block it occupies.
+         * Bakes the trunk one cell at a time, in both of the spaces a cell can be drawn from.
          *
          * <p>{@link #bakeSides} hands a block the faces of the cells <em>around</em> it, which is
          * the same surface seen from the core outwards. Here each cell gets its own faces instead,
-         * shifted back into that block's own 0-16 space, so a trunk shell can draw the slice of
-         * trunk standing in it. Texture coordinates still come from the cell's place in the whole
-         * trunk, so the two bakes put the same pixels in the same place.
+         * so a block can draw the slice of trunk standing in it. Texture coordinates always come
+         * from the cell's place in the whole trunk, so every bake puts the same pixels in the same
+         * place.
+         *
+         * <p>A cell is normally drawn by the trunk shell occupying it, in that block's own 0-16
+         * space, which is what {@code inCell} collects. But a shell cannot be placed over every
+         * block — a surface root at the foot of a tree keeps its own block — so the core has to
+         * draw those cells itself, reaching out of its block as the whole-trunk bake did. That is
+         * what {@code fromCore} collects: the same faces, left where they lie relative to the core.
          */
-        public void bakeCells(ModelBaker baker, int radius, TrunkCellParts into) {
+        public void bakeCells(ModelBaker baker, int radius, TrunkCellParts inCell, TrunkCellParts fromCore) {
             AABB wholeVolume = new AABB(8 - radius, 0, 8 - radius, 8 + radius, 16, 8 + radius);
 
             for (CoordUtils.Surround cell : cellsWithCore()) {
@@ -242,7 +248,8 @@ public record BranchModelPart(QuadCollection quads, boolean useAmbientOcclusion,
                     continue; // The trunk does not reach this cell at this radius.
                 }
 
-                Vector3f[] limits = ModelHelper.AABBLimits(
+                Vector3f[] coreLimits = ModelHelper.AABBLimits(boundary);
+                Vector3f[] cellLimits = ModelHelper.AABBLimits(
                         boundary.move(-offset.getX() * 16, 0, -offset.getZ() * 16));
 
                 for (Direction face : Direction.values()) {
@@ -258,14 +265,18 @@ public record BranchModelPart(QuadCollection quads, boolean useAmbientOcclusion,
                             new CuboidFace.UVs(uvCoords[0], uvCoords[1], uvCoords[2], uvCoords[3]),
                             ModelHelper.getFaceQuadrant(Direction.Axis.Y, face)));
 
-                    CuboidModelElement element = new CuboidModelElement(limits[0], limits[1], mapFacesIn);
-                    QuadCollection.Builder builder = new QuadCollection.Builder();
-                    builder.addUnculledFace(
-                            ModelHelper.makeBakedQuad(baker, element, mapFacesIn.get(face), material, face));
-
-                    into.put(cell, face, radius, new BranchModelPart(builder.build(), true, material));
+                    inCell.put(cell, face, radius, bakeCellFace(baker, cellLimits, mapFacesIn, face));
+                    fromCore.put(cell, face, radius, bakeCellFace(baker, coreLimits, mapFacesIn, face));
                 }
             }
+        }
+
+        private BranchModelPart bakeCellFace(ModelBaker baker, Vector3f[] limits,
+                                             Map<Direction, CuboidFace> faces, Direction face) {
+            CuboidModelElement element = new CuboidModelElement(limits[0], limits[1], faces);
+            QuadCollection.Builder builder = new QuadCollection.Builder();
+            builder.addUnculledFace(ModelHelper.makeBakedQuad(baker, element, faces.get(face), material, face));
+            return new BranchModelPart(builder.build(), true, material);
         }
 
         /** The eight surrounding cells plus the core, which has no {@link CoordUtils.Surround}. */

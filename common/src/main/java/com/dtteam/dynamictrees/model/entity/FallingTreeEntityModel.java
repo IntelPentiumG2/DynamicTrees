@@ -22,6 +22,7 @@ import net.minecraft.client.renderer.block.dispatch.BlockStateModel;
 import net.minecraft.client.resources.model.geometry.BakedQuad;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.util.ARGB;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
@@ -157,9 +158,11 @@ public class FallingTreeEntityModel extends EntityModel<FallingTreeRenderState> 
                 g *= diffuse;
                 b *= diffuse;
             }
-            int newColor = ((int)(r * 255F) & 255) << 16 | ((int)(g * 255F) & 255) << 8 | ((int)(b * 255F) & 255);
+            // Opaque, because QuadInstance takes a whole ARGB value: leaving the alpha byte at zero
+            // is invisible to vanilla, whose cutout test reads the texture's alpha before the vertex
+            // colour is multiplied in, but not to shader packs, which test after and discard the lot.
             QuadInstance instance = new QuadInstance();
-            instance.setColor(newColor);
+            instance.setColor(ARGB.colorFromFloat(1.0F, r, g, b));
             instance.setLightCoords(packedLight);
             instance.setOverlayCoords(packedOverlay);
             buffer.putBakedQuad(pose, bakedQuad, instance);
