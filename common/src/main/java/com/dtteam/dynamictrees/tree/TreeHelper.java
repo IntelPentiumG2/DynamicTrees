@@ -211,6 +211,25 @@ public class TreeHelper {
      * @return The position of the root node of the tree or BlockPos.ZERO if nothing was found.
      */
     public static BlockPos findRootNode(Level level, BlockPos pos) {
+        return findRootNode(level, pos, new MapSignal());
+    }
+
+    /**
+     * Find the root node of a tree, using a caller-supplied {@link MapSignal}.
+     *
+     * <p>Callers that only want to <em>ask</em> whether a network is rooted should pass a signal with
+     * {@link MapSignal#destroyLoopedNodes} set to {@code false}. The default {@code true} makes the walk
+     * break a branch when it exceeds {@link com.dtteam.dynamictrees.tree.family.Family#getMaxSignalDepth()},
+     * which is the right behaviour for severing genuine network loops but turns a read-only query into a
+     * destructive one on any tree that is merely deep.</p>
+     *
+     * @param level  The level
+     * @param pos    The position being analyzed
+     * @param signal The signal to walk the network with. Inspect it after the call for
+     *               {@link MapSignal#overflow} to tell "no root" apart from "gave up looking".
+     * @return The position of the root node of the tree or BlockPos.ZERO if nothing was found.
+     */
+    public static BlockPos findRootNode(Level level, BlockPos pos, MapSignal signal) {
 
         pos = dereferenceTrunkShell(level, pos);
         BlockState state = level.getBlockState(pos);
@@ -218,7 +237,7 @@ public class TreeHelper {
 
         switch (treePart.getTreePartType()) {
             case BRANCH:
-                MapSignal signal = treePart.analyse(state, level, pos, null, new MapSignal());// Analyze entire tree network to find root node
+                treePart.analyse(state, level, pos, null, signal);// Analyze entire tree network to find root node
                 if (signal.foundRoot) {
                     return signal.root;
                 }

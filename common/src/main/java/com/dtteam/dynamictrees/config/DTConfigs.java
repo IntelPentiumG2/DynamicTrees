@@ -3,6 +3,7 @@ package com.dtteam.dynamictrees.config;
 import com.dtteam.dynamictrees.DynamicTrees;
 import com.dtteam.dynamictrees.block.branch.ThickBranchBlock;
 import com.dtteam.dynamictrees.systems.season.SeasonCompatibilityHandler;
+import com.dtteam.dynamictrees.tree.OrphanValidator;
 import com.dtteam.dynamictrees.tree.species.SwampSpecies;
 import net.neoforged.neoforge.common.ModConfigSpec;
 import org.apache.commons.lang3.tuple.Pair;
@@ -81,6 +82,8 @@ public class DTConfigs {
     public ModConfigSpec.BooleanValue worldGen;
     public ModConfigSpec.ConfigValue<List<? extends String>> dimensionBlacklist;
     public ModConfigSpec.BooleanValue sampleNoiseBiome;
+    public ModConfigSpec.EnumValue<OrphanValidator.Mode> orphanTreeCleanup;
+    public ModConfigSpec.IntValue orphanSweepChunksPerTick;
 
     public ModConfigSpec.BooleanValue generateDirtBucketRecipes;
     public ModConfigSpec.BooleanValue generateMegaSeedRecipe;
@@ -189,6 +192,14 @@ public class DTConfigs {
                 .define("dimensionsBlacklist", new ArrayList<>());
         config.sampleNoiseBiome = builder.comment("Dynamic Trees sample the biome noise map instead of the actual biome when placing trees. Sampling the noise biome may cause issues with tools like world painter. Sampling the real biome may cause freezing during world generation.")
                 .define("sampleNoiseBiome", true);
+        config.orphanTreeCleanup = builder.comment(
+                        "Automatically remove tree networks that can no longer reach any rooty soil.",
+                        "These are left behind when another mod deletes the ground under a finished tree without a block update, which is common with late-running terrain carvers and river generators.",
+                        "A network is only removed when the check completes and definitively finds no soil; anything inconclusive is left alone. Use /dt clearorphaned to clean those up manually.",
+                        "OFF: never. GENERATED_ONLY: only chunks the server just generated. ALL_LOADS: every chunk load, which also repairs worlds damaged before this option existed.")
+                .defineEnum("orphanTreeCleanup", OrphanValidator.Mode.GENERATED_ONLY);
+        config.orphanSweepChunksPerTick = builder.comment("How many queued chunks the orphaned-tree sweep may check per tick, per dimension. Lower this if chunk loading stutters.")
+                .defineInRange("orphanSweepChunksPerTick", 2, 1, 64);
         builder.pop();
 
         builder.comment("Debug Settings").push("debug");

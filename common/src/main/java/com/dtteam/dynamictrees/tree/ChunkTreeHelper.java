@@ -65,11 +65,25 @@ public class ChunkTreeHelper {
                 continue; // No branch block found at this position.  Move on
             }
 
-            // Test if the branch has a root node attached to it
-            BlockPos rootPos = TreeHelper.findRootNode(level, pos);
+            if (found.contains(pos)) {
+                continue; // An earlier walk already proved this network is rooted.
+            }
+
+            // Test if the branch has a root node attached to it. The probe must not destroy anything by
+            // itself -- the default signal breaks a branch on depth overflow, which would damage a healthy
+            // but deep tree just for being looked at.
+            MapSignal rootSearch = new MapSignal();
+            rootSearch.destroyLoopedNodes = false;
+            BlockPos rootPos = TreeHelper.findRootNode(level, pos, rootSearch);
             if (rootPos == BlockPos.ZERO) { // If the root position is the ORIGIN object it means that no root block was found
+                if (rootSearch.overflow) {
+                    // The walk hit the family's max signal depth and gave up before it could reach any soil.
+                    // That is not evidence of an orphan -- big trees legitimately exceed it, which is why
+                    // jungle raises max_signal_depth to 64 -- so leave this network alone.
+                    continue;
+                }
                 // If the root node isn't found then all nodes are orphan.  Destroy the entire network.
-                doTreeDestroy(level, branchBlock.get(), pos);
+                destroyTreeNetwork(level, branchBlock.get(), pos);
                 orphansCleared++;
                 continue;
             }
@@ -96,7 +110,7 @@ public class ChunkTreeHelper {
             signal.destroyLoopedNodes = false;
             trunk.get().analyse(trunkState, level, trunkPos, null, signal);
             if (signal.multiroot || signal.overflow) { // We found multiple root nodes.  This can't be resolved. Destroy the entire network
-                doTreeDestroy(level, branchBlock.get(), pos);
+                destroyTreeNetwork(level, branchBlock.get(), pos);
                 orphansCleared++;
             } else { // Tree appears healthy with only a single attached root block
                 trunk.get().analyse(trunkState, level, trunkPos, null, new MapSignal(new CollectorNode(found)));
@@ -117,7 +131,7 @@ public class ChunkTreeHelper {
         for (BlockPos pos : bounds) {
             BlockState state = level.getBlockState(pos);
             TreeHelper.getBranchOpt(state).ifPresent(branchBlock -> {
-                doTreeDestroy(level, branchBlock, pos);
+                destroyTreeNetwork(level, branchBlock, pos);
                 treesCleared.getAndIncrement();
             });
         }
@@ -126,10 +140,24 @@ public class ChunkTreeHelper {
     }
 
     public static BlockPosBounds getEffectiveBlockBounds(Level level, ChunkPos chunkPos, int radius) {
-        LevelChunk chunk = level.getChunk(chunkPos.x(), chunkPos.z());
         BlockPosBounds bounds = new BlockPosBounds(level, chunkPos);
 
-        bounds.shrink(Direction.UP, (level.getHeight() - 1) - (getTopFilledSegment(chunk) + 16));
+        // The ceiling has to cover every chunk the bounds end up spanning, not just the middle one: an
+        // orphaned canopy raises the highest filled section of the chunk it floats in, which is rarely the
+        // chunk the player is standing in. These chunks are all about to be read block by block anyway.
+        int top = level.getMinY();
+        for (int dx = -radius; dx <= radius; dx++) {
+            for (int dz = -radius; dz <= radius; dz++) {
+                top = Math.max(top, getTopFilledSegment(level.getChunk(chunkPos.x() + dx, chunkPos.z() + dz)));
+            }
+        }
+
+        // getTopFilledSegment returns an ABSOLUTE block Y, while BlockPosBounds starts at level.getMaxY().
+        // Subtracting a height *count* from an absolute maxY collapsed the ceiling to minY + top + 16,
+        // which is around y=16 in a default overworld -- below every canopy this scan is meant to find.
+        // Work out the ceiling in absolute Y instead, then shrink down to it.
+        final int ceiling = Math.min(level.getMaxY(), top + CHUNK_WIDTH);
+        bounds.shrink(Direction.UP, level.getMaxY() - ceiling);
         for (Direction dir : CoordUtils.HORIZONTALS) {
             bounds.expand(dir, radius * CHUNK_WIDTH);
         }
@@ -142,7 +170,12 @@ public class ChunkTreeHelper {
         return chunk.getHighestSectionPosition();
     }
 
-    private static void doTreeDestroy(Level level, BranchBlock branchBlock, BlockPos pos) {
+    /**
+     * Tears down the whole branch network containing {@code pos} without dropping seeds, and tidies up the
+     * blocks that were hanging off it. This is the teardown the chunk commands and {@link OrphanValidator}
+     * share; it makes no attempt to check whether the network deserved it, so establish that first.
+     */
+    public static void destroyTreeNetwork(Level level, BranchBlock branchBlock, BlockPos pos) {
         BranchDestructionData destroyData = branchBlock.destroyBranchFromNode(level, pos, Direction.DOWN, true, null);
         destroyData.leavesDrops.clear(); // Prevent dropped seeds from planting themselves again
         FallingTreeEntity.dropTree(level, destroyData, new ArrayList<>(0),
