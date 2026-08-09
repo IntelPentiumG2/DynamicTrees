@@ -11,6 +11,7 @@ import com.dtteam.dynamictrees.recipe.DendroPotionRecipeHandler;
 import com.dtteam.dynamictrees.systems.FutureBreak;
 import com.dtteam.dynamictrees.systems.season.SeasonCompatibilityHandler;
 import com.dtteam.dynamictrees.systems.season.SeasonHelper;
+import com.dtteam.dynamictrees.tree.OrphanValidator;
 import com.dtteam.dynamictrees.treepack.Resources;
 import com.dtteam.dynamictrees.worldgen.BiomeDatabases;
 import com.dtteam.dynamictrees.worldgen.feature.DynamicTreeFeature;
@@ -22,6 +23,7 @@ import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.AddServerReloadListenersEvent;
 import net.neoforged.neoforge.event.RegisterCommandsEvent;
 import net.neoforged.neoforge.event.brewing.RegisterBrewingRecipesEvent;
+import net.neoforged.neoforge.event.level.ChunkEvent;
 import net.neoforged.neoforge.event.level.LevelEvent;
 import net.neoforged.neoforge.event.server.ServerStartingEvent;
 import net.neoforged.neoforge.event.tick.LevelTickEvent;
@@ -42,8 +44,28 @@ public class CommonGameEventHandler {
     public static void onPreLevelTick(LevelTickEvent.Pre event) {
         if (!event.getLevel().isClientSide()) {
             FutureBreak.process(event.getLevel());
+            OrphanValidator.process(event.getLevel());
         }
         SeasonHelper.updateTick(event.getLevel(), event.getLevel().getDefaultClockTime());
+    }
+
+    /**
+     * Queues freshly loaded chunks for the orphaned-tree sweep. The sweep itself is deferred to the level
+     * tick: what usually orphans a tree is a <em>neighbouring</em> chunk generating afterwards, so checking
+     * here would run before the damage is done.
+     */
+    @SubscribeEvent
+    public static void onChunkLoad(ChunkEvent.Load event) {
+        if (!(event.getLevel() instanceof ServerLevel serverLevel)) {
+            return;
+        }
+
+        final OrphanValidator.Mode mode = OrphanValidator.mode();
+        if (mode == OrphanValidator.Mode.OFF || (mode == OrphanValidator.Mode.GENERATED_ONLY && !event.isNewChunk())) {
+            return;
+        }
+
+        OrphanValidator.enqueue(serverLevel, event.getChunk().getPos());
     }
 
     @SubscribeEvent
@@ -63,6 +85,7 @@ public class CommonGameEventHandler {
         final LevelAccessor level = event.getLevel();
         if (!level.isClientSide()) {
             DynamicTreeFeature.DISC_PROVIDER.unloadWorld((ServerLevel) level);//clears the circles
+            OrphanValidator.unload((ServerLevel) level);//drops any chunks still queued for the orphan sweep
         }
     }
 
