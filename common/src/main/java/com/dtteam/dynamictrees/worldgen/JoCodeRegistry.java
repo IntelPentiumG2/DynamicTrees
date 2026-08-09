@@ -42,7 +42,8 @@ public final class JoCodeRegistry {
      * none were found for the specified {@code speciesName}
      */
     public static Map<Integer, List<JoCode>> getCodes(Identifier speciesName, boolean roots) {
-        return Collections.unmodifiableMap((roots?ROOTS_CODES:CODES).getOrDefault(speciesName, new HashMap<>()));
+        final Map<Integer, List<JoCode>> codes = (roots?ROOTS_CODES:CODES).get(speciesName);
+        return codes == null ? Collections.emptyMap() : Collections.unmodifiableMap(codes);
     }
 
     /**
@@ -57,7 +58,8 @@ public final class JoCodeRegistry {
         return getCodes(speciesName, radius, false);
     }
     public static List<JoCode> getCodes(Identifier speciesName, int radius, boolean root) {
-        return Collections.unmodifiableList(getCodes(speciesName, root).getOrDefault(radius, new ArrayList<>()));
+        final List<JoCode> codes = getCodes(speciesName, root).get(radius);
+        return codes == null ? Collections.emptyList() : Collections.unmodifiableList(codes);
     }
 
     /**

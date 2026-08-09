@@ -47,7 +47,8 @@ public class DestroyerNode extends FindEndsNode {
         BranchBlock branch = TreeHelper.getBranch(state);
 
         if (branch != null && species.getFamily() == branch.getFamily()) {
-            accessor.setBlock(pos, branch.getStateForDecay(state, accessor, pos), 3);//Destroy the branch and notify the client
+            // Update the client only; FallingTreeEntity#updateNeighbors handles neighbor notifications in one pass.
+            accessor.setBlock(pos, branch.getStateForDecay(state, accessor, pos), 2);
         }
 
         return super.run(state, accessor, pos, fromDir);

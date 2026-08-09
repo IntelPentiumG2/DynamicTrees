@@ -416,8 +416,8 @@ public class LeavesProperties extends RegistryEntry<LeavesProperties> implements
     }
 
     public BlockState getDynamicLeavesState(int hydro) {
-        return Optional.ofNullable(dynamicLeavesBlockHydroStates[Mth.clamp(hydro, 0, maxHydro)])
-                .orElse(Blocks.AIR.defaultBlockState());
+        final BlockState state = dynamicLeavesBlockHydroStates[Mth.clamp(hydro, 0, maxHydro)];
+        return state != null ? state : Blocks.AIR.defaultBlockState();
     }
 
     ///////////////////////////////////////////

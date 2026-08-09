@@ -56,6 +56,21 @@ public class ModelConnections extends Connections {
         ringOnly = ringSide;
     }
 
+    @Override
+    public boolean equals(Object obj) {
+        if (!super.equals(obj)) return false;
+        final ModelConnections other = (ModelConnections) obj;
+        return ringOnly == other.ringOnly && family == other.family;
+    }
+
+    @Override
+    public int hashCode() {
+        int result = super.hashCode();
+        result = 31 * result + (ringOnly == null ? 0 : ringOnly.hashCode());
+        result = 31 * result + System.identityHashCode(family);
+        return result;
+    }
+
 //    public static final ModelProperty<ModelConnections> CONNECTIONS_PROPERTY = new ModelProperty<>();
 //
 //    public ModelData toModelData() {

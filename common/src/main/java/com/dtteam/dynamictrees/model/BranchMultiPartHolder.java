@@ -32,9 +32,11 @@ public class BranchMultiPartHolder {
             return direction;
         }
 
+        private static final NullableDirection[] BY_3D_DATA = {DOWN, UP, NORTH, SOUTH, WEST, EAST};
+
         public static NullableDirection fromDirection(@Nullable Direction direction){
             if (direction == null) return NULL;
-            return valueOf(direction.toString().toUpperCase(Locale.ENGLISH));
+            return BY_3D_DATA[direction.get3DDataValue()];
         }
     }
 
@@ -80,11 +82,7 @@ public class BranchMultiPartHolder {
 
     @Nullable
     public BranchModelPart getPart(Direction.Axis orientation, @Nullable Direction dir, int radius){
-        Key key = new Key(orientation, NullableDirection.fromDirection(dir), radius);
-        if (map.containsKey(key)){
-            return map.get(key);
-        }
-        return null;
+        return map.get(new Key(orientation, NullableDirection.fromDirection(dir), radius));
     }
 
     @Nullable

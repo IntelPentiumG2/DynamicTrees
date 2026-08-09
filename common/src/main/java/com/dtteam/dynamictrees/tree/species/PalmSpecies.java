@@ -109,15 +109,16 @@ public class PalmSpecies extends Species {
 
         HashMap<BlockPos, BlockState> leaves = new HashMap<>();
 
+        // The set of existing leaves is the same for every endpoint, so build it once.
+        Set<BlockPos> existingLeaves = new HashSet<>();
+        for (int j = 0; j < destructionData.getNumLeaves(); j++) {
+            existingLeaves.add(destructionData.getLeavesRelPos(j));
+        }
+
         for (int i = 0; i < endPointsNum; i++) {
             BlockPos relPos = destructionData.getEndPointRelPos(i).above(2);//A palm tree is only supposed to have one endpoint at it's top.
             relPos = relPos.below();
             LeavesProperties leavesProperties = destructionData.species.getLeavesProperties();
-
-            Set<BlockPos> existingLeaves = new HashSet<>();
-            for (int j = 0; j < destructionData.getNumLeaves(); j++) {
-                existingLeaves.add(destructionData.getLeavesRelPos(j));
-            }
 
             if (existingLeaves.contains(relPos)) {
                 leaves.put(relPos, leavesProperties.getDynamicLeavesState(4));//The barky overlapping part of the palm frond cluster

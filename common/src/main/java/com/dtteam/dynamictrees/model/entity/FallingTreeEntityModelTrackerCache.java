@@ -5,10 +5,8 @@ import com.dtteam.dynamictrees.platform.ClientServices;
 import net.minecraft.world.level.Level;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
-import java.util.stream.Collectors;
 
 public class FallingTreeEntityModelTrackerCache {
 
@@ -24,13 +22,11 @@ public class FallingTreeEntityModelTrackerCache {
     public static void cleanupModels(Level level, FallingTreeEntity entity) {
         if (level.isClientSide()){
             models.remove(entity.getId());
-            cleanupModels(level);
         }
     }
 
     public static void cleanupModels(Level level) {
-        models = models.entrySet().stream()
-                .filter(map -> level.getEntity(map.getKey()) != null)
-                .collect(Collectors.toConcurrentMap(Map.Entry::getKey, Map.Entry::getValue));
+        // Sweep in place; entries for dead entities are also removed eagerly in cleanupModels(level, entity).
+        models.keySet().removeIf(id -> level.getEntity(id) == null);
     }
 }

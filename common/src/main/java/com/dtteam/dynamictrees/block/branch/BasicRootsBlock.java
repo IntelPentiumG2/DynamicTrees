@@ -25,6 +25,7 @@ import com.dtteam.dynamictrees.tree.species.AerialRootsSpecies;
 import com.dtteam.dynamictrees.tree.species.Species;
 import com.dtteam.dynamictrees.utility.EntityUtils;
 import com.dtteam.dynamictrees.utility.ItemUtils;
+import com.dtteam.dynamictrees.utility.CoordUtils;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.Vec3i;
@@ -456,7 +457,7 @@ public class BasicRootsBlock extends BranchBlock implements SimpleWaterloggedBlo
         // Rooty dirt below for saplings counts as 2 neighbors if the soil is not infertile
         int neigh = 0;// High Nybble is count of branches, Low Nybble is any reinforcing treepart(including branches)
 
-        for (Direction dir : Direction.values()) {
+        for (Direction dir : CoordUtils.DIRECTIONS) {
             BlockPos deltaPos = pos.relative(dir);
             BlockState deltaBlockState = level.getBlockState(deltaPos);
             neigh += TreeHelper.getTreePart(deltaBlockState).branchSupport(deltaBlockState, level, this, deltaPos, dir, radius);
@@ -468,7 +469,7 @@ public class BasicRootsBlock extends BranchBlock implements SimpleWaterloggedBlo
         boolean didRot = species.rot(level, pos, neigh & 0x0F, radius, fertility, rand, true, false); // Unreinforced branches are destroyed.
 
         if (rapid && didRot) {// Speedily postRot back dead branches if this block rotted
-            for (Direction dir : Direction.values()) {// The logic here is that if this block rotted then
+            for (Direction dir : CoordUtils.DIRECTIONS) {// The logic here is that if this block rotted then
                 BlockPos neighPos = pos.relative(dir);// the neighbors might be rotted too.
                 BlockState neighState = level.getBlockState(neighPos);
                 if (isSameTree(neighState)) { // Only check blocks logs that are the same as this one
@@ -535,7 +536,7 @@ public class BasicRootsBlock extends BranchBlock implements SimpleWaterloggedBlo
     }
 
     private boolean isNextToSoil(Level level, BlockPos pos, Direction originDir) {
-        for (Direction dir : Direction.values()) {
+        for (Direction dir : CoordUtils.DIRECTIONS) {
             if (!dir.equals(originDir)) {
                 if (TreeHelper.isRooty(level.getBlockState(pos.relative(dir)))) {
                     return true;
@@ -596,7 +597,7 @@ public class BasicRootsBlock extends BranchBlock implements SimpleWaterloggedBlo
         float areaAccum = signal.radius * signal.radius;// Start by accumulating the branch we just came from
 
         boolean theresPods = false;
-        for (Direction dir : Direction.values()) {
+        for (Direction dir : CoordUtils.DIRECTIONS) {
             if (!dir.equals(originDir) && !dir.equals(targetDir)) {// Don't count where the signal originated from or the branch we just came back from
                 BlockPos deltaPos = pos.relative(dir);
 
@@ -654,7 +655,7 @@ public class BasicRootsBlock extends BranchBlock implements SimpleWaterloggedBlo
 
         if (signal.depth++ < getMaxSignalDepth()) {// Prevents going too deep into large networks, or worse, being caught in a network loop
             signal.run(blockState, level, pos, fromDir);// Run the inspectors of choice
-            for (Direction dir : Direction.values()) {// Spread signal in various directions
+            for (Direction dir : CoordUtils.DIRECTIONS) {// Spread signal in various directions
                 if (dir != fromDir) {// don't count where the signal originated from
                     BlockPos deltaPos = pos.relative(dir);
 

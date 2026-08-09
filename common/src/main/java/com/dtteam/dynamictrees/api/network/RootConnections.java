@@ -57,6 +57,17 @@ public class RootConnections extends Connections {
         this.connectionLevels = connectionLevels;
     }
 
+    @Override
+    public boolean equals(Object obj) {
+        if (!super.equals(obj)) return false;
+        return java.util.Arrays.equals(connectionLevels, ((RootConnections) obj).connectionLevels);
+    }
+
+    @Override
+    public int hashCode() {
+        return 31 * super.hashCode() + java.util.Arrays.hashCode(connectionLevels);
+    }
+
     /**
      * This holds the type of connection a surface root has with the block in the given {@link Direction} as described
      * by its index (see {@link RootConnections#connectionLevels}).

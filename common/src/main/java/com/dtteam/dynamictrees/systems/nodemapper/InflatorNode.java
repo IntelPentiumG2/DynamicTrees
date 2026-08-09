@@ -7,6 +7,7 @@ import com.dtteam.dynamictrees.block.branch.BranchBlock;
 import com.dtteam.dynamictrees.block.soil.SoilBlock;
 import com.dtteam.dynamictrees.tree.TreeHelper;
 import com.dtteam.dynamictrees.tree.species.Species;
+import com.dtteam.dynamictrees.utility.CoordUtils;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.level.LevelAccessor;
@@ -65,7 +66,7 @@ public class InflatorNode implements NodeInspector {
             float areaAccum = radius * radius;//Start by accumulating the branch we just came from
             boolean isTwig = true;
 
-            for (Direction dir : Direction.values()) {
+            for (Direction dir : CoordUtils.DIRECTIONS) {
                 if (!dir.equals(fromDir)) {//Don't count where the signal originated from
 
                     BlockPos dPos = pos.relative(dir);

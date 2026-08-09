@@ -18,6 +18,9 @@ import java.util.List;
  */
 public final class OverworldGroundFinder implements GroundFinder {
 
+    public static final TagKey<net.minecraft.world.level.biome.Biome> IS_UNDERGROUND =
+            TagKey.create(Registries.BIOME, Identifier.parse("c:is_underground"));
+
     @Override
     public List<BlockPos> findGround(LevelAccessor level, BlockPos start, @Nullable Heightmap.Types heightmap) {
 		//We start of by getting the surface ground
@@ -27,7 +30,7 @@ public final class OverworldGroundFinder implements GroundFinder {
 		final BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos(start.getX(), 0, start.getZ());
 		boolean caveBiomeFound = false;
 		while (CoordUtils.inRange(pos, level.getMinY(), surfaceBlock.getY())) {
-			if (level.getBiome(pos).is(TagKey.create(Registries.BIOME, Identifier.parse("c:is_underground")))){
+			if (level.getBiome(pos).is(IS_UNDERGROUND)){
 				caveBiomeFound = true;
 				break;
 			}
@@ -35,9 +38,7 @@ public final class OverworldGroundFinder implements GroundFinder {
 		}
 		//If underground biomes are present, we want to include them
 		if (caveBiomeFound){
-			List<BlockPos> subterraneanGround = SUBTERRANEAN.findGround(level, start, heightmap);
-			surfaceGround.addAll(subterraneanGround);
-			return new LinkedList<>(surfaceGround);
+			surfaceGround.addAll(SUBTERRANEAN.findGround(level, start, heightmap));
 		}
 		return surfaceGround;
     }

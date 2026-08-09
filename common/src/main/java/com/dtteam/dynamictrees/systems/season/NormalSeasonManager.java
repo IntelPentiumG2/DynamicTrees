@@ -36,6 +36,9 @@ public class NormalSeasonManager implements SeasonManager {
     }
 
     private SeasonContext getContext(Level level) {
+        // Plain get first: this runs every level tick and computeIfAbsent would allocate a capturing lambda per call.
+        final SeasonContext existing = seasonContextMap.get(level.dimension().identifier());
+        if (existing != null) return existing;
         return seasonContextMap.computeIfAbsent(level.dimension().identifier(), d -> {
             Tuple<SeasonProvider, SeasonGrowthCalculator> tuple = createProvider(level);
             return new SeasonContext(tuple.getA(), tuple.getB());
@@ -65,11 +68,24 @@ public class NormalSeasonManager implements SeasonManager {
         return (b.getBaseTemperature() >= ARID_THRESHHOLD); // || b.climateSettings.downfall() <= ARID_DOWNFALL_THRESHHOLD
     };
 
+    /** One-entry memo: getClimate asks up to three predicates about the same position in a row. */
+    private static final ThreadLocal<Object[]> LAST_BIOME = ThreadLocal.withInitial(() -> new Object[3]);
+
     private static Biome getBiomeForDist(LevelAccessor level, BlockPos pos){
-        if (level instanceof Level){ //Worldgen worlds are not Level, which would crash with getBiome
-            return level.getBiome(pos).value();
+        final Object[] memo = LAST_BIOME.get();
+        if (memo[0] == level && pos.equals(memo[1])) {
+            return (Biome) memo[2];
         }
-        return level.getUncachedNoiseBiome(pos.getX() >> 2, pos.getY() >> 2, pos.getZ() >> 2).value();
+        final Biome biome;
+        if (level instanceof Level){ //Worldgen worlds are not Level, which would crash with getBiome
+            biome = level.getBiome(pos).value();
+        } else {
+            biome = level.getUncachedNoiseBiome(pos.getX() >> 2, pos.getY() >> 2, pos.getZ() >> 2).value();
+        }
+        memo[0] = level;
+        memo[1] = pos.immutable();
+        memo[2] = biome;
+        return biome;
     }
 
     public void setTropicalPredicate(BiPredicate<LevelAccessor, BlockPos> predicate) {

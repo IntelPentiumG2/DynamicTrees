@@ -6,12 +6,13 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 
-import java.util.LinkedList;
+import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 
 public class FutureBreak {
 
-    public static final List<FutureBreak> FUTURE_BREAKS = new LinkedList<>();
+    public static final List<FutureBreak> FUTURE_BREAKS = new ArrayList<>();
 
     public final BlockState state;
     public final Level level;
@@ -38,13 +39,15 @@ public class FutureBreak {
             return;
         }
 
-        for (final FutureBreak futureBreak : new LinkedList<>(FUTURE_BREAKS)) {
+        // Iterate a snapshot since futureBreak() may add new entries; remove by index to avoid O(n) scans.
+        final FutureBreak[] snapshot = FUTURE_BREAKS.toArray(new FutureBreak[0]);
+        for (final FutureBreak futureBreak : snapshot) {
             if (level != futureBreak.level) {
                 continue;
             }
 
             if (!(futureBreak.state.getBlock() instanceof FutureBreakable futureBreakable)) {
-                FUTURE_BREAKS.remove(futureBreak);
+                removeIdentity(futureBreak);
                 continue;
             }
 
@@ -53,7 +56,16 @@ public class FutureBreak {
             }
 
             futureBreakable.futureBreak(futureBreak.state, level, futureBreak.pos, futureBreak.entity);
-            FUTURE_BREAKS.remove(futureBreak);
+            removeIdentity(futureBreak);
+        }
+    }
+
+    private static void removeIdentity(FutureBreak futureBreak) {
+        for (final Iterator<FutureBreak> it = FUTURE_BREAKS.iterator(); it.hasNext(); ) {
+            if (it.next() == futureBreak) {
+                it.remove();
+                return;
+            }
         }
     }
 

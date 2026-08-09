@@ -1,9 +1,14 @@
 package com.dtteam.dynamictrees.systems.genfeature.context;
 
+import com.dtteam.dynamictrees.api.network.MapSignal;
 import com.dtteam.dynamictrees.block.soil.SoilBlock;
+import com.dtteam.dynamictrees.systems.nodemapper.FindEndsNode;
+import com.dtteam.dynamictrees.tree.TreeHelper;
 import com.dtteam.dynamictrees.tree.species.Species;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.Level;
+
+import java.util.List;
 
 /**
  * @author Harley O'Connor
@@ -43,6 +48,21 @@ public class PostGrowContext extends GenFeatureContext {
 
     public boolean natural() {
         return natural;
+    }
+
+    private List<BlockPos> memoizedEndPoints;
+
+    /**
+     * The branch endpoints of the grown tree. The network is analysed at most once per grow event,
+     * on first call, and the result is shared by every gen feature handling that event.
+     */
+    public List<BlockPos> endPoints() {
+        if (memoizedEndPoints == null) {
+            final FindEndsNode endFinder = new FindEndsNode();
+            TreeHelper.startAnalysisFromRoot(level(), pos(), new MapSignal(endFinder));
+            memoizedEndPoints = endFinder.getEnds();
+        }
+        return memoizedEndPoints;
     }
 
 }

@@ -212,11 +212,9 @@ public class SoilBlock extends BlockWithDynamicHardness implements TreePart, Ent
         //Growth multiplier lower than 1 causes only some ticks to grow
         if (random.nextFloat() > growthMultiplier) return;
 
-        //Growth multiplier higher than 1 causes multiple growth per tick.
-        int attempts = (int)Math.ceil(growthMultiplier);
-        for (int i=0; i<attempts; i++){
-            updateTree(state, level, pos, random, true);
-        }
+        // A multiplier above 1 is already applied to the growth rate inside Species#grow, which loops
+        // accordingly; looping here as well would scale the work (and speed) quadratically.
+        updateTree(state, level, pos, random, true);
     }
 
     public Direction getTrunkDirection(BlockGetter access, BlockPos rootPos) {

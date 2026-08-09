@@ -22,7 +22,8 @@ public class RootsDestroyerNode extends FindEndsNode {
         BranchBlock branch = TreeHelper.getBranch(state);
 
         if (branch != null) {
-            level.setBlock(pos, branch.getStateForDecay(state, level, pos), 3);//Destroy the branch and notify the client
+            // Update the client only; FallingTreeEntity#updateNeighbors handles neighbor notifications in one pass.
+            level.setBlock(pos, branch.getStateForDecay(state, level, pos), 2);
         }
 
         return super.run(state, level, pos, fromDir);

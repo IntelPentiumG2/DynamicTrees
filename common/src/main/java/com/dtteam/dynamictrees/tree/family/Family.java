@@ -591,15 +591,14 @@ public class Family extends RegistryEntry<Family> implements Resettable<Family> 
     }
 
     public int getBranchBlockIndex(BranchBlock block) {
-        int index = IntStream.range(0, branches.size())
-                .filter(i -> branches.get(i).getBlock() == block)
-                .findFirst()
-                .orElse(-1);
-        if (index < 0) {
-            DynamicTrees.LOG.warn("Block {} not valid branch for {}.", block, this);
-            return 0;
+        // Plain loop: called once per branch block during network walks, so no stream allocations here.
+        for (int i = 0; i < branches.size(); i++) {
+            if (branches.get(i).getBlock() == block) {
+                return i;
+            }
         }
-        return index;
+        DynamicTrees.LOG.warn("Block {} not valid branch for {}.", block, this);
+        return 0;
     }
 
     @Nullable

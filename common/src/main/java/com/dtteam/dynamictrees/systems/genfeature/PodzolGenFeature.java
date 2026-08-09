@@ -56,9 +56,7 @@ public class PodzolGenFeature extends GenFeature {
         if (!DTConfigs.SERVER.generatePodzol.get()) return false;
 
         final LevelAccessor level = context.level();
-        final FindEndsNode endFinder = new FindEndsNode();
-        TreeHelper.startAnalysisFromRoot(level, context.pos(), new MapSignal(endFinder));
-        final List<BlockPos> endPoints = endFinder.getEnds();
+        final List<BlockPos> endPoints = context.endPoints();
         if (endPoints.isEmpty()) return false;
 
         final RandomSource random = context.random();

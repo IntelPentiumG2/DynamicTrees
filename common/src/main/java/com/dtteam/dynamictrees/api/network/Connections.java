@@ -46,4 +46,19 @@ public class Connections {
         return this;
     }
 
+    /**
+     * Value-based equality so instances can serve as geometry cache keys.
+     */
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj) return true;
+        if (obj == null || obj.getClass() != this.getClass()) return false;
+        return java.util.Arrays.equals(radii, ((Connections) obj).radii);
+    }
+
+    @Override
+    public int hashCode() {
+        return java.util.Arrays.hashCode(radii);
+    }
+
 }

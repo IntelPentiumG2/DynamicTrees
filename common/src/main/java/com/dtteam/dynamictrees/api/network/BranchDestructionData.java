@@ -205,7 +205,7 @@ public class BranchDestructionData {
 
     public BlockPos getBranchRelPos(int index) {
         BlockPos pos = decodeRelPos(destroyedBranchesRadiusPosition[index]);
-        if (basePos != cutPos){ //When a root system is involved, the relative positions are moved down
+        if (!basePos.equals(cutPos)){ //When a root system is involved, the relative positions are moved down
             return pos.offset(getRelativeCutPos());
         }
         return pos;
@@ -275,7 +275,7 @@ public class BranchDestructionData {
 
     public BlockPos getLeavesRelPos(int index) {
         BlockPos pos = decodeLeavesRelPos(destroyedLeaves[index]);
-        if (basePos != cutPos){ //When a root system is involved, the relative positions are moved down
+        if (!basePos.equals(cutPos)){ //When a root system is involved, the relative positions are moved down
             return pos.offset(getRelativeCutPos());
         }
         return pos;
@@ -306,7 +306,14 @@ public class BranchDestructionData {
         return null;
     }
 
+    private List<Pair<BlockPos, BlockState>> allLeavesWithPos;
+
     public List<Pair<BlockPos, BlockState>> getAllLeavesWithPos(){
+        // Memoized: the destruction data is immutable after construction and this is queried
+        // repeatedly per tick by the falling tree particle handlers.
+        if (allLeavesWithPos != null) {
+            return allLeavesWithPos;
+        }
         List<Pair<BlockPos, BlockState>> pairs = new ArrayList<>();
         final HashMap<BlockPos, BlockState> leavesClusters = species.getFellingLeavesClusters(this);
         if (leavesClusters != null) {
@@ -318,6 +325,7 @@ public class BranchDestructionData {
                 pairs.add(Pair.of(relPos, leafState));
             }
         }
+        allLeavesWithPos = pairs;
         return pairs;
     }
 
@@ -344,7 +352,7 @@ public class BranchDestructionData {
 
     public BlockPos getEndPointRelPos(int index) {
         BlockPos pos = decodeRelPos(endPoints[index]);
-        if (basePos != cutPos){ //When a root system is involved, the relative positions are moved down
+        if (!basePos.equals(cutPos)){ //When a root system is involved, the relative positions are moved down
             return pos.offset(getRelativeCutPos());
         }
         return pos;

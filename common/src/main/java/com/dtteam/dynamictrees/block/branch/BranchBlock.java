@@ -31,6 +31,7 @@ import com.dtteam.dynamictrees.utility.EntityUtils;
 import com.dtteam.dynamictrees.utility.ItemUtils;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
+import com.dtteam.dynamictrees.utility.CoordUtils;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.HolderLookup;
@@ -186,7 +187,7 @@ public abstract class BranchBlock extends BlockWithDynamicHardness implements Tr
     }
 
     public static boolean isNextToBranch(Level level, BlockPos pos, Direction originDir) {
-        for (Direction dir : Direction.values()) {
+        for (Direction dir : CoordUtils.DIRECTIONS) {
             if (!dir.equals(originDir)) {
                 if (TreeHelper.isBranch(level.getBlockState(pos.relative(dir)))) {
                     return true;
@@ -292,7 +293,7 @@ public abstract class BranchBlock extends BlockWithDynamicHardness implements Tr
         }
 
         final int coreRadius = this.getRadius(state);
-        for (final Direction dir : Direction.values()) {
+        for (final Direction dir : CoordUtils.DIRECTIONS) {
             final BlockPos deltaPos = pos.relative(dir);
             final BlockState neighborBlockState = level.getBlockState(deltaPos);
             final int sideRadius = TreeHelper.getTreePart(neighborBlockState).getRadiusForConnection(neighborBlockState, level, deltaPos, this, dir, coreRadius);
@@ -321,7 +322,7 @@ public abstract class BranchBlock extends BlockWithDynamicHardness implements Tr
 
         radii[6] = (byte)radius; //last radius is the core
 
-        for (Direction dir : Direction.values()) {
+        for (Direction dir : CoordUtils.DIRECTIONS) {
             radii[dir.get3DDataValue()] = (byte)Math.min(getSideConnectionRadius(level, pos, radius, dir), radius);
         }
         int shapeStateIndex = BranchShapeState.fromArray(radii).toIndex();
@@ -339,7 +340,7 @@ public abstract class BranchBlock extends BlockWithDynamicHardness implements Tr
     private static VoxelShape generateNewShape(byte[] radii) {
         double radius = radii[6] / 16.0;
         VoxelShape shape = Shapes.create(makeCube(radius));
-        for (Direction dir : Direction.values()) {
+        for (Direction dir : CoordUtils.DIRECTIONS) {
             double sideRadius = radii[dir.get3DDataValue()] / 16.0f;
             if (sideRadius > 0.0f) {
                 double gap = 0.5f - sideRadius;
@@ -504,11 +505,11 @@ public abstract class BranchBlock extends BlockWithDynamicHardness implements Tr
         final int primaryThickness = family.getPrimaryThickness();
 
         // Expand the volume yet again in all directions and search for other non-destroyed endpoints.
+        final SimpleVoxmap leafCluster = species.getLeavesProperties().getCellKit().getLeafCluster();
         for (final BlockPos findPos : getFamily().expandLeavesBlockBounds(bounds)) {
             final BlockState findState = level.getBlockState(findPos);
             if (familyBranch.getRadius(findState) == primaryThickness) { // Search for endpoints of the same tree family.
-                final Iterable<BlockPos.MutableBlockPos> leaves = species.getLeavesProperties().getCellKit().getLeafCluster().getAllNonZero();
-                for (BlockPos.MutableBlockPos leafPos : leaves) {
+                for (BlockPos.MutableBlockPos leafPos : leafCluster.getAllNonZero()) {
                     leafMap.setVoxel(findPos.getX() + leafPos.getX(), findPos.getY() + leafPos.getY(), findPos.getZ() + leafPos.getZ(), (byte) 0);
                 }
             }
@@ -528,7 +529,10 @@ public abstract class BranchBlock extends BlockWithDynamicHardness implements Tr
                 dropList.addAll(leaves.getDrops(level, pos, tool, species));
                 final BlockPos imPos = pos.immutable(); // We are storing this so it must be immutable
                 final BlockPos relPos = imPos.subtract(cutPos);
-                level.setBlock(imPos, Blocks.AIR.defaultBlockState(), 3);
+                // No neighbor-notify flag: FallingTreeEntity#updateNeighbors runs one consolidated
+                // notification pass on its first server tick, so notifying per removed leaf here
+                // only triggers thousands of redundant update cascades.
+                level.setBlock(imPos, Blocks.AIR.defaultBlockState(), Block.UPDATE_CLIENTS);
                 destroyedLeaves.put(relPos, state);
                 dropList.forEach(i -> drops.add(new ItemStackPos(i, relPos)));
             }
@@ -656,7 +660,7 @@ public abstract class BranchBlock extends BlockWithDynamicHardness implements Tr
 
         boolean foundFire = toBlockState.is(BlockTags.FIRE);
         if (!foundFire){
-            for (Direction offset : Direction.values()){
+            for (Direction offset : CoordUtils.DIRECTIONS){
                 BlockPos offPos = pos.offset(offset.getUnitVec3i());
                 if (level.getBlockState(offPos).is(BlockTags.FIRE)){
                     foundFire = true;
@@ -686,7 +690,7 @@ public abstract class BranchBlock extends BlockWithDynamicHardness implements Tr
         }
 
         // There's a tile entity block that snuck in.  Don't touch it!
-        for (final Direction dir : Direction.values()) { // Let's just play it safe and destroy all surrounding branch block networks.
+        for (final Direction dir : CoordUtils.DIRECTIONS) { // Let's just play it safe and destroy all surrounding branch block networks.
             final BlockPos offPos = pos.relative(dir);
             final BlockState offState = level.getBlockState(offPos);
 

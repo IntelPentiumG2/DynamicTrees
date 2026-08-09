@@ -121,7 +121,8 @@ public class SpreadableSoilProperties extends SoilProperties {
                 if (!ChunkTreeHelper.canCheckSurroundings(level, pos, 3)) {
                     return; // Forge: prevent loading unloaded chunks when checking neighbor's light and spreading
                 }
-                if (level.getMaxLocalRawBrightness(pos.above()) >= properties.required_light) {
+                final int lightAbove = level.getMaxLocalRawBrightness(pos.above());
+                if (lightAbove >= properties.required_light) {
                     for (int i = 0; i < 4; ++i) {
                         BlockPos thatPos = pos.offset(random.nextInt(3) - 1, random.nextInt(5) - 3, random.nextInt(3) - 1);
 
@@ -134,7 +135,7 @@ public class SpreadableSoilProperties extends SoilProperties {
 
                         for (SoilProperties spreadable : properties.spreadable_soils) {
                             SoilBlock block = spreadable.getBlock().orElse(null);
-                            if (block != null && (thatState.getBlock() == spreadable.getPrimitiveSoilBlock() || thatState.getBlock() == block) && level.getMaxLocalRawBrightness(pos.above()) >= properties.required_light && thatStateUp.getLightEmission() <= 2) {
+                            if (block != null && (thatState.getBlock() == spreadable.getPrimitiveSoilBlock() || thatState.getBlock() == block) && thatStateUp.getLightEmission() <= 2) {
                                 if (state.hasProperty(FERTILITY)) {
                                     level.setBlockAndUpdate(pos, block.defaultBlockState().setValue(FERTILITY, state.getValue(FERTILITY)));
                                 }

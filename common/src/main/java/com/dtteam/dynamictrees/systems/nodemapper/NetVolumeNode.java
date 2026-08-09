@@ -85,9 +85,10 @@ public class NetVolumeNode implements NodeInspector {
         }
 
         public int getRawVolume() {
+            // Sum the map's values directly; iterating 0..size() misses entries when indices are sparse.
             int totalVolume = 0;
-            for (int i = 0; i < branchVolumes.size(); i++) {
-                totalVolume += getRawVolume(i);
+            for (int volume : branchVolumes.values()) {
+                totalVolume += volume;
             }
             return totalVolume;
         }

@@ -15,6 +15,7 @@ import com.dtteam.dynamictrees.systems.nodemapper.CoderNode;
 import com.dtteam.dynamictrees.systems.nodemapper.CollectorNode;
 import com.dtteam.dynamictrees.systems.nodemapper.FindEndsNode;
 import com.dtteam.dynamictrees.tree.TreeHelper;
+import com.dtteam.dynamictrees.utility.CoordUtils;
 import com.dtteam.dynamictrees.tree.family.Family;
 import com.dtteam.dynamictrees.tree.species.Species;
 import com.dtteam.dynamictrees.worldgen.feature.DynamicTreeFeature;
@@ -97,7 +98,7 @@ public class JoCode {
     /**
      * A facing matrix for mapping instructions to different rotations
      */
-    private final byte[][] dirmap = {
+    private static final byte[][] dirmap = {
             //  {D, U, N, S, W, E, F, R}
             {0, 1, 2, 3, 4, 5, 6, 7},//FACING DOWN:	 Same as NORTH
             {0, 1, 2, 3, 4, 5, 6, 7},//FACING UP:	 Same as NORTH
@@ -107,9 +108,12 @@ public class JoCode {
             {0, 1, 4, 5, 3, 2, 6, 7},//FACING EAST:	 N->W S->E W->S E->N 90 CCW
     };
 
-    //"Pointers" to the current rotation direction.
-    private byte[] facingMap = dirmap[2];//Default to NORTH(Effectively an identity matrix)
-    private byte[] unfacingMap = dirmap[2];//Default to NORTH(Effectively an identity matrix)
+    // "Pointers" to the current rotation direction. Thread-local because registry JoCodes are
+    // shared singletons: parallel worldgen threads generating the same code must not see each
+    // other's facing, which used to rotate branches with another tree's matrix and force a full
+    // regeneration via tryGenerateAgain.
+    private final ThreadLocal<byte[]> facingMap = ThreadLocal.withInitial(() -> dirmap[2]);//Default to NORTH(Effectively an identity matrix)
+    private final ThreadLocal<byte[]> unfacingMap = ThreadLocal.withInitial(() -> dirmap[2]);//Default to NORTH(Effectively an identity matrix)
 
     /**
      * Get the instruction at a locus. Automatically performs rotation based on what facing matrix is selected.
@@ -118,7 +122,7 @@ public class JoCode {
      * @return
      */
     protected int getCode(int pos) {
-        return unfacingMap[instructions[pos]];
+        return unfacingMap.get()[instructions[pos]];
     }
 
     /**
@@ -129,9 +133,9 @@ public class JoCode {
      */
     public JoCode setFacing(Direction facing) {
         int faceNum = facing.ordinal();
-        facingMap = dirmap[faceNum];
+        facingMap.set(dirmap[faceNum]);
         faceNum = (faceNum == 4) ? 5 : (faceNum == 5) ? 4 : faceNum;//Swap West and East
-        unfacingMap = dirmap[faceNum];
+        unfacingMap.set(dirmap[faceNum]);
         return this;
     }
 
@@ -143,8 +147,9 @@ public class JoCode {
      */
     public JoCode rotate(Direction dir) {
         setFacing(dir);
+        final byte[] map = facingMap.get();
         for (int c = 0; c < instructions.length; c++) {
-            instructions[c] = facingMap[instructions[c]];
+            instructions[c] = map[instructions[c]];
         }
         return this;
     }
@@ -415,22 +420,22 @@ public class JoCode {
             }
         }
 
-        // Precompute smothering.
+        // Precompute smothering. Uses the int voxel accessors to avoid a BlockPos allocation per cell.
         for (int iz = 0; iz < leafMap.getLenZ(); iz++) {
             for (int ix = 0; ix < leafMap.getLenX(); ix++) {
                 int count = 0;
                 for (int iy = startY; iy >= 0; iy--) {
-                    final int v = leafMap.getVoxel(new BlockPos(ix, iy, iz));
+                    final int v = leafMap.getVoxel(ix, iy, iz);
                     if (v == 0) { // Air
                         count = 0; // Reset the count
                     } else if ((v & 0x0F) != 0) { // Leaves
                         count++;
                         if (count > smotherMax) { // Smother value
-                            leafMap.setVoxel(new BlockPos(ix, iy, iz), (byte) 0);
+                            leafMap.setVoxel(ix, iy, iz, (byte) 0);
                         }
                     } else if ((v & 0x10) != 0) { // Twig
                         count++;
-                        leafMap.setVoxel(new BlockPos(ix, iy + 1, iz), (byte) 4);
+                        leafMap.setVoxel(ix, iy + 1, iz, (byte) 4);
                     }
                 }
             }
@@ -440,7 +445,7 @@ public class JoCode {
     }
 
     protected boolean isClearOfNearbyBranches(LevelAccessor level, BlockPos pos, Direction except) {
-        for (Direction dir : Direction.values()) {
+        for (Direction dir : CoordUtils.DIRECTIONS) {
             if (dir != except && TreeHelper.getBranch(level.getBlockState(pos.relative(dir))) != null) {
                 return false;
             }
@@ -454,8 +459,13 @@ public class JoCode {
             return;
         }
 
+        // Both arguments are loop-invariant, so sample the biome and snow check once, not per leaf top.
+        if (!level.getUncachedNoiseBiome(rootPos.getX() >> 2, rootPos.getY() >> 2, rootPos.getZ() >> 2).value().shouldSnow(level, rootPos)) {
+            return;
+        }
+
         for (BlockPos.MutableBlockPos top : leafMap.getTops()) {
-            if (level.getUncachedNoiseBiome(rootPos.getX() >> 2, rootPos.getY() >> 2, rootPos.getZ() >> 2).value().shouldSnow(level, rootPos)) {
+            {
                 final BlockPos.MutableBlockPos iPos = new BlockPos.MutableBlockPos(top.getX(), top.getY(), top.getZ());
                 int yOffset = 0;
 

@@ -32,6 +32,8 @@ import net.minecraft.world.level.levelgen.feature.Feature;
 import net.minecraft.world.level.levelgen.feature.FeaturePlaceContext;
 import net.minecraft.world.level.levelgen.feature.configurations.NoneFeatureConfiguration;
 
+import org.jetbrains.annotations.Nullable;
+
 import java.util.Arrays;
 
 /**
@@ -75,10 +77,11 @@ public class DynamicTreeFeature extends Feature<NoneFeatureConfiguration> {
     protected void generateTrees(LevelContext levelContext, BiomeDatabase biomeDatabase, PoissonDisc disc, BlockPos originPos) {
         BlockPos basePos = new BlockPos(disc.x, originPos.getY(), disc.z);
         Holder<Biome> biome = getNoiseBiome(levelContext, basePos);
-        Heightmap.Types heightmap = Heightmap.Types.valueOf(biomeDatabase.getHeightmap(biome).toUpperCase());
+        Heightmap.Types heightmap = biomeDatabase.getHeightmapType(biome);
         for (BlockPos groundPos : GroundFinder.getGroundFinder(levelContext.level()).findGround(levelContext.accessor(), basePos, heightmap)) {
-            BiomeDatabase.EntryReader entry = biomeDatabase.getEntry(getNoiseBiome(levelContext, groundPos));
-            generateTree(levelContext, entry, disc, originPos, groundPos);
+            Holder<Biome> groundBiome = getNoiseBiome(levelContext, groundPos);
+            BiomeDatabase.EntryReader entry = biomeDatabase.getEntry(groundBiome);
+            generateTree(levelContext, entry, disc, originPos, groundPos, groundBiome);
         }
     }
 
@@ -105,6 +108,17 @@ public class DynamicTreeFeature extends Feature<NoneFeatureConfiguration> {
         BlockPos originPos,
         BlockPos groundPos
     ) {
+        return generateTree(levelContext, biomeEntry, circle, originPos, groundPos, null);
+    }
+
+    protected GeneratorResult generateTree(
+        LevelContext levelContext,
+        BiomeDatabase.EntryReader biomeEntry,
+        PoissonDisc circle,
+        BlockPos originPos,
+        BlockPos groundPos,
+        @Nullable Holder<Biome> biome
+    ) {
         if (groundPos == BlockPos.ZERO) {
             return GeneratorResult.NO_GROUND;
         }
@@ -115,10 +129,9 @@ public class DynamicTreeFeature extends Feature<NoneFeatureConfiguration> {
         }
 
         RANDOM.setXOR(groundPos);
-        
-        GeneratorResult result = genTree(levelContext, biomeEntry, circle, originPos, groundPos
-        );
-        
+
+        GeneratorResult result = genTree(levelContext, biomeEntry, circle, originPos, groundPos, biome);
+
         // Display concrete circles for testing the circle algorithm.
         if (DTConfigs.SERVER.debug.get()) {
             this.generateConcreteCircle(levelContext.accessor(), circle, groundPos.getY(), result);
@@ -126,8 +139,9 @@ public class DynamicTreeFeature extends Feature<NoneFeatureConfiguration> {
 
         return result;
     }
-    
-    private GeneratorResult genTree(LevelContext levelContext, BiomeDatabase.EntryReader biomeEntry, PoissonDisc circle, BlockPos originPos, BlockPos groundPos
+
+    private GeneratorResult genTree(LevelContext levelContext, BiomeDatabase.EntryReader biomeEntry, PoissonDisc circle, BlockPos originPos, BlockPos groundPos,
+        @Nullable Holder<Biome> knownBiome
     ) {
         
         BlockState dirtState = levelContext.accessor().getBlockState(groundPos);
@@ -152,7 +166,7 @@ public class DynamicTreeFeature extends Feature<NoneFeatureConfiguration> {
             return GeneratorResult.FAIL_CHANCE;
         }
         
-        Holder<Biome> biome = getNoiseBiome(levelContext, groundPos);
+        Holder<Biome> biome = knownBiome != null ? knownBiome : getNoiseBiome(levelContext, groundPos);
         if (species.generate(new DynamicTreeGenerationContext(levelContext, species, originPos, groundPos.mutable(), biome, CoordUtils.getRandom2DDir(RANDOM), circle.radius, true))) {
             return GeneratorResult.GENERATED;
         }

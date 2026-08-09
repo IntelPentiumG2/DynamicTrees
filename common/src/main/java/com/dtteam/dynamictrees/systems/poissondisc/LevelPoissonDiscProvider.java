@@ -22,12 +22,12 @@ import java.util.Map.Entry;
 public class LevelPoissonDiscProvider implements PoissonDiscProvider {
 
     private final RadiusCoordinator radiusCoordinator;
-    private final HashMap<ChunkPos, PoissonDiscChunkSet> chunkDiscs;
+    private final java.util.concurrent.ConcurrentHashMap<ChunkPos, PoissonDiscChunkSet> chunkDiscs;
     private RandomXOR random = new RandomXOR();
     private PoissonDebug debug = PoissonDebug.EMPTY_POISSON_DEBUG;
 
     public LevelPoissonDiscProvider(RadiusCoordinator radCoord) {
-        this.chunkDiscs = new HashMap<>();
+        this.chunkDiscs = new java.util.concurrent.ConcurrentHashMap<>();
         this.radiusCoordinator = radCoord;
     }
 
@@ -45,33 +45,30 @@ public class LevelPoissonDiscProvider implements PoissonDiscProvider {
 
     @Override
     public List<PoissonDisc> getPoissonDiscs(int chunkX, int chunkY, int chunkZ) {
+        // Lock-free fast path: a generated chunk set is immutable, so parallel worldgen threads
+        // asking about already-solved chunks (the overwhelming majority of calls) never contend.
+        final PoissonDiscChunkSet cSet = getChunkDiscSet(chunkX, chunkZ);
+        if (cSet.generated) {
+            return this.getChunkPoissonDiscs(chunkX, chunkZ);
+        }
         synchronized (this) {
-            this.random.setXOR(new BlockPos(chunkX, chunkY, chunkZ));
-            final PoissonDiscChunkSet cSet = getChunkDiscSet(chunkX, chunkZ);
-            if (cSet.generated) {
+            if (cSet.generated) { // Re-check: another thread may have solved it while we waited.
                 return this.getChunkPoissonDiscs(chunkX, chunkZ);
-            } else {
-                int i = 0;
-                List<PoissonDisc> output = null;
-                while (this.radiusCoordinator.runPass(chunkX, chunkZ, i++)) {
-                    output = this.generatePoissonDiscs(random, chunkX, chunkZ);
-                }
-                return output;
             }
+            this.random.setXOR(new BlockPos(chunkX, chunkY, chunkZ));
+            int i = 0;
+            List<PoissonDisc> output = null;
+            while (this.radiusCoordinator.runPass(chunkX, chunkZ, i++)) {
+                output = this.generatePoissonDiscs(random, chunkX, chunkZ);
+            }
+            return output;
         }
     }
 
-    // A set of caches so we needn't create the lists from scratch for every chunk.
-    private final List<PoissonDisc> discCache1 = new ArrayList<>(64); // 64 is above the typical range to expect for 9 chunks.
-    private final List<PoissonDisc> discCache2 = new ArrayList<>(64);
-
     public List<PoissonDisc> generatePoissonDiscs(RandomSource random, int chunkX, int chunkZ) {
-        final List<PoissonDisc> allDiscs = discCache1;
-        final List<PoissonDisc> unsolvedDiscs = discCache2;
-
-        // Step 0. Clear the temporary caches.
-        allDiscs.clear();
-        unsolvedDiscs.clear();
+        // Local scratch lists; sharing them across calls is what forced the old global lock.
+        final List<PoissonDisc> allDiscs = new ArrayList<>(64); // 64 is above the typical range to expect for 9 chunks.
+        final List<PoissonDisc> unsolvedDiscs = new ArrayList<>(64);
 
         this.debug.begin(chunkX, chunkZ);
 
@@ -230,13 +227,15 @@ public class LevelPoissonDiscProvider implements PoissonDiscProvider {
 
         // Add circles to circle set.
         final PoissonDiscChunkSet cSet = getChunkDiscSet(chunkX, chunkZ);
-        cSet.generated = true;
 
         for (final PoissonDisc disc : allDiscs) {
             if (disc.isInCenterChunk(chunkXStart, chunkZStart)) {
                 cSet.addDisc(disc);
             }
         }
+
+        // Set (volatile) only after the discs are stored so the lock-free read path sees complete data.
+        cSet.generated = true;
 
         return cSet.getDiscs(new ArrayList<>(16), chunkX, chunkZ);
     }
@@ -252,17 +251,7 @@ public class LevelPoissonDiscProvider implements PoissonDiscProvider {
     }
 
     private PoissonDiscChunkSet getChunkDiscSet(int chunkX, int chunkZ) {
-        final ChunkPos key = new ChunkPos(chunkX, chunkZ);
-        final PoissonDiscChunkSet cSet;
-
-        if (this.chunkDiscs.containsKey(key)) {
-            cSet = this.chunkDiscs.get(key);
-        } else {
-            cSet = new PoissonDiscChunkSet();
-            this.chunkDiscs.put(key, cSet);
-        }
-
-        return cSet;
+        return this.chunkDiscs.computeIfAbsent(new ChunkPos(chunkX, chunkZ), key -> new PoissonDiscChunkSet());
     }
 
     @Override

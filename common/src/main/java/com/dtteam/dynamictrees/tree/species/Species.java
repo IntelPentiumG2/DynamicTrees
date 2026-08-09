@@ -1475,12 +1475,13 @@ public class Species extends RegistryEntry<Species> implements Resettable<Specie
     public boolean grow(Level level, SoilBlock rootyDirt, BlockPos rootPos, int fertility, TreePart treeBase, BlockPos treePos, RandomSource random, boolean natural) {
 
         float growthRate = (float) (getGrowthRate(level, rootPos) * DTConfigs.SERVER.treeGrowthMultiplier.get());
+        final int baseSoilLongevity = getSoilLongevity(level, rootPos); // Involves biome/climate lookups; constant across the loop.
         do {
             if (fertility > 0) {
                 if (growthRate > random.nextFloat()) {
                     GrowSignal signal = sendGrowthSignal(treeBase, level, treePos, rootPos, rootyDirt.getTrunkDirection(level, rootPos));
 
-                    int soilLongevity = getSoilLongevity(level, rootPos) * (signal.success ? 1 : 16);//Don't deplete the soil as much if the growth operation failed
+                    int soilLongevity = baseSoilLongevity * (signal.success ? 1 : 16);//Don't deplete the soil as much if the growth operation failed
 
                     if (soilLongevity <= 0 || random.nextInt(soilLongevity) == 0) {//1 in X(soilLongevity) chance to draw nutrients from soil
                         rootyDirt.setFertility(level, rootPos, fertility - 1);//decrement fertility

@@ -27,8 +27,8 @@ public final class BiomeDatabases {
     }
 
     public static BiomeDatabase getDimensionalOrDefault(Identifier dimensionLocation) {
-        return Optional.ofNullable(DIMENSIONAL_DATABASES.get(dimensionLocation))
-                .orElse(DEFAULT_DATABASE);
+        final BiomeDatabase database = DIMENSIONAL_DATABASES.get(dimensionLocation);
+        return database != null ? database : DEFAULT_DATABASE;
     }
 
     public static BiomeDatabase getOrCreateDimensional(Identifier dimensionLocation) {

@@ -49,27 +49,24 @@ public record BranchBlockStateModel(
         if (forceRings(numConnections, forceRingDir)) {
             addPart(parts,rings.getPart(forceRingDir, coreRadius));
         } else {
-            for (Direction face : Direction.values()) {
+            for (Direction face : DIRECTIONS) {
                 gatherCoreParts(parts, face, coreRadius, connections, coreRingDir, coreDir);
-                gatherSleeveParts(parts, face, coreRadius, connections, twigRadius);
             }
+            gatherSleeveParts(parts, connections);
         }
         //The null side is usually empty, but roots have the cross.
         addPart(parts, cores.getPart(coreDir, null, coreRadius));
     }
 
-    private void gatherSleeveParts(List<BlockStateModelPart> parts, Direction face, int coreRadius, int[] connections, int twigRadius) {
-        // Get quads for sleeves models.
-        for (Direction connDir : Direction.values()) {
-            final int idx = connDir.get3DDataValue();
-            final int connRadius = connections[idx];
+    private static final Direction[] DIRECTIONS = Direction.values();
+
+    private void gatherSleeveParts(List<BlockStateModelPart> parts, int[] connections) {
+        // Each sleeve part is face-independent; add it exactly once per connection.
+        for (Direction connDir : DIRECTIONS) {
+            final int connRadius = connections[connDir.get3DDataValue()];
             if (connRadius == 0) continue;
-            // If the connection side matches the quadpull side then cull the sleeve face.
-            // Don't cull radius-1 connections for leaves (which are partly transparent).
-            if (coreRadius < 8 && connRadius <= twigRadius || face != connDir) {
-                addPart(parts,sleeves.getPart(connDir, connRadius));
-            }
-            if (face == connDir && !sleeveRings.isEmpty()){
+            addPart(parts,sleeves.getPart(connDir, connRadius));
+            if (!sleeveRings.isEmpty()){
                 addPart(parts,sleeveRings.getPart(connDir, connRadius));
             }
         }

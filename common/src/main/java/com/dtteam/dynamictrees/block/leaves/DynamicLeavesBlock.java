@@ -17,6 +17,7 @@ import com.dtteam.dynamictrees.platform.Services;
 import com.dtteam.dynamictrees.systems.GrowSignal;
 import com.dtteam.dynamictrees.tree.ChunkTreeHelper;
 import com.dtteam.dynamictrees.tree.TreeHelper;
+import com.dtteam.dynamictrees.utility.CoordUtils;
 import com.dtteam.dynamictrees.tree.family.Family;
 import com.dtteam.dynamictrees.tree.species.Species;
 import com.mojang.serialization.MapCodec;
@@ -179,13 +180,13 @@ public class DynamicLeavesBlock extends TintedParticleLeavesBlock implements Tre
         Set<BlockPos> processedPositions = new HashSet<>();
         int firstHydro = updateHydro(level, startPos, startState, worldGen);
         toProcess.add(new Tuple<>(startPos, firstHydro));
+        processedPositions.add(startPos);
         if (firstHydro == 0) return false;
         while (!toProcess.isEmpty() && processedPositions.size() <= getLeavesProperties().maxLeavesRecursion()){
             Tuple<BlockPos, Integer> tup = toProcess.remove();
             BlockPos pos = tup.getA();
             int hydro = tup.getB();
-            processedPositions.add(pos);
-            for (Direction dir : Direction.values()) { // Go on all 6 sides of this block
+            for (Direction dir : CoordUtils.DIRECTIONS) { // Go on all 6 sides of this block
                 if (hydro > 1 || rand.nextInt(4) == 0) { // we'll give it a 1 in 4 chance to grow leaves if hydro is low to help performance
                     BlockPos sidePos = pos.relative(dir);
                     if (processedPositions.contains(sidePos)) continue;
@@ -200,8 +201,9 @@ public class DynamicLeavesBlock extends TintedParticleLeavesBlock implements Tre
                     }
                     //Do not iterate back through bigger hydro values
                     //or if the leaves failed to grow
-                    if (sideHydro == 0 || sideHydro <= hydro){
+                    if (sideHydro != 0 && sideHydro <= hydro){
                         toProcess.add(new Tuple<>(sidePos, sideHydro));
+                        processedPositions.add(sidePos); // Mark at enqueue so a position is queued at most once.
                     }
                 }
             }
@@ -217,7 +219,7 @@ public class DynamicLeavesBlock extends TintedParticleLeavesBlock implements Tre
             return 0;
         }
 
-        for (Direction dir : Direction.values()) {
+        for (Direction dir : CoordUtils.DIRECTIONS) {
             if (newHydro > 1 || rand.nextInt(4) == 0) {
                 BlockPos sidePos = pos.relative(dir);
                 growLeavesIfLocationIsSuitable(level, getLeavesProperties(), sidePos, null);
@@ -317,18 +319,20 @@ public class DynamicLeavesBlock extends TintedParticleLeavesBlock implements Tre
         }
 
         // Help to grow into double tall grass and ferns in a more natural way.
-        final BlockState stateDown = level.getBlockState(pos.below());
+        boolean replacedPlant = false;
         if (block instanceof DoublePlantBlock && blockState.getValue(DoublePlantBlock.HALF) == DoubleBlockHalf.UPPER &&
-                stateDown.getBlock() instanceof DoublePlantBlock && stateDown.getValue(DoublePlantBlock.HALF) == DoubleBlockHalf.LOWER) {
+                belowBlockState.getBlock() instanceof DoublePlantBlock && belowBlockState.getValue(DoublePlantBlock.HALF) == DoubleBlockHalf.LOWER) {
             if (block == Blocks.TALL_GRASS) {
                 level.setBlock(pos.below(), Blocks.SHORT_GRASS.defaultBlockState(), 3);
             } else if (block == Blocks.LARGE_FERN) {
                 level.setBlock(pos.below(), Blocks.FERN.defaultBlockState(), 3);
             }
             level.removeBlock(pos, false);
+            replacedPlant = true;
         }
 
-        return (level.isEmptyBlock(pos) || level.getBlockState(pos).canBeReplaced()) && hasAdequateLight(blockState, level, leavesProperties, pos);
+        final BlockState currentState = replacedPlant ? level.getBlockState(pos) : blockState;
+        return (currentState.isAir() || currentState.canBeReplaced()) && hasAdequateLight(blockState, level, leavesProperties, pos);
     }
 
     /**
@@ -420,7 +424,7 @@ public class DynamicLeavesBlock extends TintedParticleLeavesBlock implements Tre
     public int getHydrationLevelFromNeighbors(LevelAccessor level, BlockPos pos, LeavesProperties leavesProperties) {
         final Cell[] cells = new Cell[6];
 
-        for (Direction dir : Direction.values()) {
+        for (Direction dir : CoordUtils.DIRECTIONS) {
             final BlockPos deltaPos = pos.relative(dir);
             final BlockState state = level.getBlockState(deltaPos);
             final TreePart part = TreeHelper.getTreePart(state);
@@ -482,7 +486,7 @@ public class DynamicLeavesBlock extends TintedParticleLeavesBlock implements Tre
 
         boolean hasLeaves = false;
         //Check leaves conditions before expanding the canopy, otherwise it will always be true
-        for (Direction dir : Direction.values()) {
+        for (Direction dir : CoordUtils.DIRECTIONS) {
             if (needLeaves(level, pos.relative(dir), leavesProperties, species)) {
                 hasLeaves = true;
                 break;
@@ -621,15 +625,17 @@ public class DynamicLeavesBlock extends TintedParticleLeavesBlock implements Tre
                 hasLeaves = false;
             }
 
+            final BlockPos.MutableBlockPos iPos = new BlockPos.MutableBlockPos();
             for (int ix = minX; ix <= maxX; ix++) {
                 for (int iz = minZ; iz <= maxZ; iz++) {
-                    BlockPos iPos = new BlockPos(ix, pos.getY() - iy, iz);
+                    iPos.set(ix, pos.getY() - iy, iz);
                     BlockState crashState = level.getBlockState(iPos);
                     if (TreeHelper.isLeaves(crashState)) {
                         hasLeaves = true; // This layer has leaves
+                        final BlockPos crushPos = iPos.immutable(); // Callees may retain the position.
                         if (level.isClientSide())
-                            ParticleHelper.crushLeavesBlock(level, iPos, crashState, entity);
-                        level.removeBlock(iPos, false);
+                            ParticleHelper.crushLeavesBlock(level, crushPos, crashState, entity);
+                        level.removeBlock(crushPos, false);
                     } else if (!level.isEmptyBlock(iPos)) {
                         crushing = false; // We hit something solid thus no longer crushing leaves layers
                     }

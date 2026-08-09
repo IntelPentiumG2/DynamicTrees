@@ -114,14 +114,17 @@ public record UnbakedBranchModel(Identifier barkTexture, Identifier ringsTexture
         // look at, such as a falling tree.
         TrunkCellParts cellBark = new TrunkCellParts();
         TrunkCellParts cellRings = new TrunkCellParts();
+        TrunkCellParts coreBark = new TrunkCellParts();
+        TrunkCellParts coreRings = new TrunkCellParts();
 
         for (int radius = BranchBlock.MAX_RADIUS + 1; radius <= ThickBranchBlock.MAX_RADIUS_THICK; radius++) {
             trunksBark.putAllParts(radius, unbakedBark.bakeAllSides(baker, radius));
             trunksRings.putAllParts(radius, unbakedRings.bakeSides(baker, radius, EnumSet.of(Direction.UP, Direction.DOWN)));
-            unbakedBark.bakeCells(baker, radius, cellBark);
-            unbakedRings.bakeCells(baker, radius, cellRings);
+            unbakedBark.bakeCells(baker, radius, cellBark, coreBark);
+            unbakedRings.bakeCells(baker, radius, cellRings, coreRings);
         }
 
-        return new ThickBranchBlockStateModel(fallback, trunksBark, trunksRings, cellBark, cellRings);
+        return new ThickBranchBlockStateModel(fallback, trunksBark, trunksRings,
+                cellBark, cellRings, coreBark, coreRings);
     }
 }

@@ -39,9 +39,9 @@ import net.minecraft.world.level.storage.ValueOutput;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import org.apache.logging.log4j.LogManager;
-import oshi.util.tuples.Pair;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 
@@ -301,23 +301,24 @@ public class FallingTreeEntity extends Entity implements ModelTracker {
      */
     protected void updateNeighbors() {
         HashSet<BlockPos> destroyed = new HashSet<>();
-        HashSet<Pair<BlockPos, Direction>> toUpdate = new HashSet<>();
+        // One notification per position; notifying once per incoming direction is redundant.
+        HashMap<BlockPos, Direction> toUpdate = new HashMap<>();
 
         //Gather a set of all the block positions that were recently destroyed
         Iterables.concat(destroyData.getPositions(BranchDestructionData.PosType.BRANCHES), destroyData.getPositions(BranchDestructionData.PosType.LEAVES)).forEach(destroyed::add);
 
         //Gather a list of all the non-destroyed blocks surrounding each destroyed block
         for (BlockPos d : destroyed) {
-            for (Direction dir : Direction.values()) {
+            for (Direction dir : CoordUtils.DIRECTIONS) {
                 BlockPos dPos = d.relative(dir);
                 if (!destroyed.contains(dPos)) {
-                    toUpdate.add(new Pair<>(dPos, dir));
+                    toUpdate.putIfAbsent(dPos, dir);
                 }
             }
         }
 
         //Update each of the blocks that need to be updated
-        toUpdate.forEach(pos -> level().neighborChanged(pos.getA(), Blocks.AIR, Orientation.fromIndex(pos.getB().ordinal())));
+        toUpdate.forEach((pos, dir) -> level().neighborChanged(pos, Blocks.AIR, Orientation.fromIndex(dir.ordinal())));
     }
 
     protected AnimationHandler selectAnimationHandler() {

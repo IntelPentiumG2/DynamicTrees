@@ -109,15 +109,17 @@ public class FalloverAnimationHandler implements AnimationHandler {
     }
 
     protected void spawnLeavesParticlesWhileFalling(FallingTreeEntity entity, float fallSpeed){
+        if (!entity.level().isClientSide()) return; // Particles only exist client-side; skip all the work on the server.
         BranchDestructionData data = entity.getDestroyData();
-        if (data.getAllLeavesWithPos().isEmpty()) return;
+        final List<Pair<BlockPos, BlockState>> allLeaves = data.getAllLeavesWithPos();
+        if (allLeaves.isEmpty()) return;
 
         int particleCount = (int)(fallSpeed * data.species.falloverParticleFlingMultiplier());
         if (particleCount == 0) return;
 
         RandomSource rand = entity.level().getRandom();
         for (int j=0; j<particleCount; j++){
-            Pair<BlockPos, BlockState> leafLoc = data.getAllLeavesWithPos().get(rand.nextInt(data.getAllLeavesWithPos().size()));
+            Pair<BlockPos, BlockState> leafLoc = allLeaves.get(rand.nextInt(allLeaves.size()));
             BlockPos leavesPos = leafLoc.getKey().offset(data.basePos);
             BlockState leavesState = leafLoc.getValue();
             if (leavesState == null) return;
@@ -129,6 +131,7 @@ public class FalloverAnimationHandler implements AnimationHandler {
     }
 
     protected void flingLeavesParticles(FallingTreeEntity entity, float fallSpeed){
+        if (!entity.level().isClientSide()) return; // Particles only exist client-side; skip all the work on the server.
         int bounces = getData(entity).bounces;
         if (bounces > 1) return;
         int maxParticleBlocks = DTConfigs.COMMON.maxFallingTreeLeavesParticles.get();

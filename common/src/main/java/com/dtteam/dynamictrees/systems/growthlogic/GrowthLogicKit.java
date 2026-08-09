@@ -12,6 +12,7 @@ import com.dtteam.dynamictrees.tree.TreeHelper;
 import com.dtteam.dynamictrees.tree.species.Species;
 import com.dtteam.dynamictrees.utility.MathUtils;
 import com.dtteam.dynamictrees.utility.IdentifierUtils;
+import com.dtteam.dynamictrees.utility.CoordUtils;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.resources.Identifier;
@@ -88,7 +89,7 @@ public abstract class GrowthLogicKit extends ConfigurableRegistryEntry<GrowthLog
 
         // Select a direction from the probability map.
         final int choice = MathUtils.selectRandomFromDistribution(context.signal().rand, probMap);
-        return Direction.values()[choice != -1 ? choice : 1]; // Default to up if it failed.
+        return CoordUtils.DIRECTIONS[choice != -1 ? choice : 1]; // Default to up if it failed.
     }
 
     /**
@@ -116,7 +117,7 @@ public abstract class GrowthLogicKit extends ConfigurableRegistryEntry<GrowthLog
         // Favour the current direction of travel as defined by the species.
         probMap[context.signal().dir.ordinal()] += context.species().getProbabilityForCurrentDir();
 
-        for (Direction dir : Direction.values()) {
+        for (Direction dir : CoordUtils.DIRECTIONS) {
             if (!dir.equals(originDir)) {
                 final BlockPos deltaPos = context.pos().relative(dir);
                 // Check probability for surrounding blocks.

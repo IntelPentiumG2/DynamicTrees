@@ -77,9 +77,7 @@ public class LeafLitterGenFeature extends GenFeature {
 
         final LevelAccessor level = context.level();
         final RandomSource random = context.random();
-        final FindEndsNode endFinder = new FindEndsNode();
-        TreeHelper.startAnalysisFromRoot(level, context.pos(), new MapSignal(endFinder));
-        final List<BlockPos> endPoints = endFinder.getEnds();
+        final List<BlockPos> endPoints = context.endPoints();
         if (endPoints.isEmpty()) return false;
 
         final BlockPos pos = endPoints.get(random.nextInt(endPoints.size()));

@@ -15,6 +15,7 @@ import com.dtteam.dynamictrees.systems.growthlogic.context.DirectionSelectionCon
 import com.dtteam.dynamictrees.tree.TreeHelper;
 import com.dtteam.dynamictrees.tree.family.Family;
 import com.dtteam.dynamictrees.tree.species.Species;
+import com.dtteam.dynamictrees.utility.CoordUtils;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.resources.Identifier;
@@ -131,7 +132,7 @@ public class BasicBranchBlock extends BranchBlock implements SimpleWaterloggedBl
         // Rooty dirt below for saplings counts as 2 neighbors if the soil is not infertile
         int neigh = 0;// High Nybble is count of branches, Low Nybble is any reinforcing treepart(including branches)
 
-        for (Direction dir : Direction.values()) {
+        for (Direction dir : CoordUtils.DIRECTIONS) {
             BlockPos deltaPos = pos.relative(dir);
             BlockState deltaBlockState = level.getBlockState(deltaPos);
             neigh += TreeHelper.getTreePart(deltaBlockState).branchSupport(deltaBlockState, level, this, deltaPos, dir, radius);
@@ -143,7 +144,7 @@ public class BasicBranchBlock extends BranchBlock implements SimpleWaterloggedBl
         boolean didRot = species.rot(level, pos, neigh & 0x0F, radius, fertility, rand, rapid, fertility > 0); // Unreinforced branches are destroyed.
 
         if (rapid && didRot) {// Speedily postRot back dead branches if this block rotted
-            for (Direction dir : Direction.values()) {// The logic here is that if this block rotted then
+            for (Direction dir : CoordUtils.DIRECTIONS) {// The logic here is that if this block rotted then
                 BlockPos neighPos = pos.relative(dir);// the neighbors might be rotted too.
                 BlockState neighState = level.getBlockState(neighPos);
                 if (neighState.getBlock() == this) { // Only check blocks logs that are the same as this one
@@ -186,7 +187,7 @@ public class BasicBranchBlock extends BranchBlock implements SimpleWaterloggedBl
 
     @Override
     public float getHardness(BlockState state, BlockGetter level, BlockPos pos) {
-        final int radius = this.getRadius(level.getBlockState(pos));
+        final int radius = this.getRadius(state);
         final double hardness = this.getFamily().getPrimitiveLog().orElse(Blocks.AIR).defaultBlockState()
                 .getDestroySpeed(level, pos) * DTConfigs.SERVER.treeHardnessMultiplier.get() * (radius * radius) / 64.0f * 8.0f;
         return (float) Math.min(hardness, DTConfigs.SERVER.maxTreeHardness.get());
@@ -195,7 +196,7 @@ public class BasicBranchBlock extends BranchBlock implements SimpleWaterloggedBl
     /** NeoForge override */
     @SuppressWarnings("unused")
     public int getFireSpreadSpeed(BlockState state, BlockGetter level, BlockPos pos, Direction direction) {
-        int radius = getRadius(level.getBlockState(pos));
+        int radius = getRadius(state);
         return (fireSpreadSpeed * radius) / 8;
     }
 
@@ -328,7 +329,7 @@ public class BasicBranchBlock extends BranchBlock implements SimpleWaterloggedBl
         float areaAccum = signal.radius * signal.radius;// Start by accumulating the branch we just came from
 
         boolean theresPods = false;
-        for (Direction dir : Direction.values()) {
+        for (Direction dir : CoordUtils.DIRECTIONS) {
             if (!dir.equals(originDir) && !dir.equals(targetDir)) {// Don't count where the signal originated from or the branch we just came back from
                 BlockPos deltaPos = pos.relative(dir);
 
@@ -424,7 +425,7 @@ public class BasicBranchBlock extends BranchBlock implements SimpleWaterloggedBl
 
         if (signal.depth++ < getMaxSignalDepth()) {// Prevents going too deep into large networks, or worse, being caught in a network loop
             signal.run(blockState, level, pos, fromDir);// Run the inspectors of choice
-            for (Direction dir : Direction.values()) {// Spread signal in various directions
+            for (Direction dir : CoordUtils.DIRECTIONS) {// Spread signal in various directions
                 if (dir != fromDir) {// don't count where the signal originated from
                     BlockPos deltaPos = pos.relative(dir);
 

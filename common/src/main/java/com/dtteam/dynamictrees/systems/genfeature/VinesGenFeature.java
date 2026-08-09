@@ -111,9 +111,7 @@ public class VinesGenFeature extends GenFeature {
 
         if (branch != null && branch.getRadius(blockState) >= fruitingRadius && context.natural()) {
             if (species.seasonalFruitProductionFactor(context.levelContext(), rootPos) > level.getRandom().nextFloat()) {
-                final FindEndsNode endFinder = new FindEndsNode();
-                TreeHelper.startAnalysisFromRoot(level, rootPos, new MapSignal(endFinder));
-                final List<BlockPos> endPoints = endFinder.getEnds();
+                final List<BlockPos> endPoints = context.endPoints();
                 final int qty = configuration.get(QUANTITY);
 
                 if (!endPoints.isEmpty()) {

@@ -65,9 +65,7 @@ public class AlternativeLeavesGenFeature extends GenFeature {
         final LevelAccessor world = context.level();
         final Species species = context.species();
 
-        final FindEndsNode endFinder = new FindEndsNode();
-        TreeHelper.startAnalysisFromRoot(world, context.pos(), new MapSignal(endFinder));
-        final List<BlockPos> endPoints = endFinder.getEnds();
+        final List<BlockPos> endPoints = context.endPoints();
         if (endPoints.isEmpty()) {
             return false;
         }

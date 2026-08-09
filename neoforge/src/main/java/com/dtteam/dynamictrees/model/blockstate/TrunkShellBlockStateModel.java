@@ -43,17 +43,13 @@ public record TrunkShellBlockStateModel(Material.Baked particleMaterial) impleme
                              List<BlockStateModelPart> parts) {
         Trunk trunk = trunkOf(level, pos, state);
         if (trunk != null) {
-            trunk.model().collectCell(level, pos, trunk.radius(), trunk.cell(), parts);
+            trunk.model().collectCell(level, trunk.corePos(), trunk.radius(), trunk.cell(), false, parts);
         }
     }
 
     @Override
     public Object createGeometryKey(BlockAndTintGetter level, BlockPos pos, BlockState state, RandomSource random) {
-        Trunk trunk = trunkOf(level, pos, state);
-        if (trunk == null) {
-            return TrunkShellBlockStateModel.class;
-        }
-        return ThickBranchBlockStateModel.cellKey(level, pos, trunk.radius(), trunk.cell());
+        return ThickBranchBlockStateModel.geometryKey(this, level, pos, state);
     }
 
     @Override
@@ -75,8 +71,10 @@ public record TrunkShellBlockStateModel(Material.Baked particleMaterial) impleme
         return trunk == null ? particleMaterial : trunk.model().particleMaterial();
     }
 
-    /** The trunk a shell belongs to: which model draws it, how wide it is, and which cell this is. */
-    private record Trunk(ThickBranchBlockStateModel model, int radius, @Nullable com.dtteam.dynamictrees.utility.CoordUtils.Surround cell) {}
+    /** The trunk a shell belongs to: which model draws it, where its core stands, how wide it is,
+     *  and which cell this is. */
+    private record Trunk(ThickBranchBlockStateModel model, BlockPos corePos, int radius,
+                         com.dtteam.dynamictrees.utility.CoordUtils.Surround cell) {}
 
     @Nullable
     private static Trunk trunkOf(BlockAndTintGetter level, BlockPos pos, BlockState state) {
@@ -98,7 +96,8 @@ public record TrunkShellBlockStateModel(Material.Baked particleMaterial) impleme
         }
         Vec3i offset = pos.subtract(muse.pos());
         var cell = TrunkCellParts.cellOf(offset);
-        return cell == null ? null : new Trunk(thick, Math.min(radius, ThickBranchBlock.MAX_RADIUS_THICK), cell);
+        return cell == null ? null
+                : new Trunk(thick, muse.pos(), Math.min(radius, ThickBranchBlock.MAX_RADIUS_THICK), cell);
     }
 
     public record Unbaked(Identifier particleTexture) implements CustomUnbakedBlockStateModel {

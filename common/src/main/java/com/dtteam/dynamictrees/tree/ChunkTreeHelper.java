@@ -15,6 +15,7 @@ import com.dtteam.dynamictrees.utility.CoordUtils;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.SectionPos;
+import net.minecraft.util.Mth;
 import net.minecraft.core.Vec3i;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.*;
@@ -222,11 +223,14 @@ public class ChunkTreeHelper {
     }
 
     public static boolean canCheckSurroundings(LevelAccessor accessor, AABB bounds) {
-        return accessor.getBlockStatesIfLoaded(bounds).findAny().isPresent();
+        return accessor.hasChunksAt(Mth.floor(bounds.minX), Mth.floor(bounds.minY), Mth.floor(bounds.minZ),
+                Mth.floor(bounds.maxX), Mth.floor(bounds.maxY), Mth.floor(bounds.maxZ));
     }
 
     public static boolean canCheckSurroundings(LevelAccessor accessor, BlockPos pos, int r) {
-        return canCheckSurroundings(accessor, AABB.encapsulatingFullBlocks(pos.offset(-r, -r, -r), pos.offset(r, r, r)));
+        // Chunk-presence check only; avoids building an AABB and a block-state stream on a very hot path.
+        return accessor.hasChunksAt(pos.getX() - r, pos.getY() - r, pos.getZ() - r,
+                pos.getX() + r, pos.getY() + r, pos.getZ() + r);
     }
 
     public static boolean isSurroundedByLoadedChunks(Level level, BlockPos pos) {

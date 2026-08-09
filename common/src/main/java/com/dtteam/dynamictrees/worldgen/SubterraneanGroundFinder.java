@@ -72,7 +72,7 @@ public class SubterraneanGroundFinder implements GroundFinder {
         for (int y : layers) {
             BlockPos pos = new BlockPos(start.getX(), y, start.getZ());
             //We only want positions for underground biomes and underground dimensions
-            if (level.dimensionType().hasCeiling() || level.getBiome(pos).is(TagKey.create(Registries.BIOME, Identifier.parse("c:is_underground"))))
+            if (level.dimensionType().hasCeiling() || level.getBiome(pos).is(OverworldGroundFinder.IS_UNDERGROUND))
                 positions.add(pos);
         }
 

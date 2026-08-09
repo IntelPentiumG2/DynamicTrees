@@ -43,14 +43,21 @@ public class TrunkCellParts {
         return parts.isEmpty();
     }
 
+    private static final CoordUtils.Surround[][] CELL_BY_OFFSET = new CoordUtils.Surround[3][3];
+
+    static {
+        for (CoordUtils.Surround surround : CoordUtils.Surround.values()) {
+            Vec3i off = surround.getOffset();
+            CELL_BY_OFFSET[off.getX() + 1][off.getZ() + 1] = surround;
+        }
+    }
+
     /** The cell a block sits in relative to the trunk's core, or {@code null} for the core itself. */
     @Nullable
     public static CoordUtils.Surround cellOf(Vec3i offset) {
-        for (CoordUtils.Surround surround : CoordUtils.Surround.values()) {
-            if (surround.getOffset().equals(offset)) {
-                return surround;
-            }
+        if (offset.getY() != 0 || Math.abs(offset.getX()) > 1 || Math.abs(offset.getZ()) > 1) {
+            return null;
         }
-        return null;
+        return CELL_BY_OFFSET[offset.getX() + 1][offset.getZ() + 1];
     }
 }

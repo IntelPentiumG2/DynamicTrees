@@ -141,6 +141,9 @@ public class FallingTreeEntityModel extends EntityModel<FallingTreeRenderState> 
 
     public void renderToBuffer(PoseStack.Pose pose, VertexConsumer buffer, int packedLight, int packedOverlay) {
         float r, g, b;
+        final QuadInstance instance = new QuadInstance();
+        instance.setLightCoords(packedLight);
+        instance.setOverlayCoords(packedOverlay);
         for (TreeQuadData treeQuad : getQuads()) {
             r = 1;
             g = 1;
@@ -161,10 +164,7 @@ public class FallingTreeEntityModel extends EntityModel<FallingTreeRenderState> 
             // Opaque, because QuadInstance takes a whole ARGB value: leaving the alpha byte at zero
             // is invisible to vanilla, whose cutout test reads the texture's alpha before the vertex
             // colour is multiplied in, but not to shader packs, which test after and discard the lot.
-            QuadInstance instance = new QuadInstance();
             instance.setColor(ARGB.colorFromFloat(1.0F, r, g, b));
-            instance.setLightCoords(packedLight);
-            instance.setOverlayCoords(packedOverlay);
             buffer.putBakedQuad(pose, bakedQuad, instance);
         }
     }

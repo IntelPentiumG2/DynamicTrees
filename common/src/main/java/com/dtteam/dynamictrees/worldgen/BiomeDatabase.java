@@ -22,7 +22,8 @@ import java.util.function.Function;
 
 public class BiomeDatabase {
     private final Map<IDTBiomeHolderSet, JsonEntry> jsonEntries = new LinkedHashMap<>();
-    private final Map<Identifier, Entry> entries = new HashMap<>();
+    // Concurrent: entries are lazily created from parallel worldgen threads.
+    private final Map<Identifier, Entry> entries = new java.util.concurrent.ConcurrentHashMap<>();
 
     public JsonEntry getJsonEntry(IDTBiomeHolderSet biomes) {
         return this.jsonEntries.computeIfAbsent(biomes, k -> new JsonEntry(this));
@@ -35,20 +36,21 @@ public class BiomeDatabase {
     public Entry getEntry(ResourceKey<Biome> biomeKey) {
         Identifier biomeRegistryName = biomeKey.identifier();
 
-        if (this.entries.containsKey(biomeRegistryName))
-            return this.entries.get(biomeRegistryName);
+        Entry existing = this.entries.get(biomeRegistryName);
+        if (existing != null)
+            return existing;
 
-        Entry entry = new Entry(this, biomeKey);
-        this.entries.put(biomeRegistryName, entry);
-
-        this.jsonEntries.forEach((biomes, jsonEntry) -> {
-            if (biomes.containsKey(biomeKey)) {
-                // Copy any data explicitly set from json
-                jsonEntry.copyTo(entry);
-            }
+        // computeIfAbsent so concurrent worldgen threads build (and json-populate) each entry exactly once.
+        return this.entries.computeIfAbsent(biomeRegistryName, name -> {
+            Entry entry = new Entry(this, biomeKey);
+            this.jsonEntries.forEach((biomes, jsonEntry) -> {
+                if (biomes.containsKey(biomeKey)) {
+                    // Copy any data explicitly set from json
+                    jsonEntry.copyTo(entry);
+                }
+            });
+            return entry;
         });
-
-        return entry;
     }
 
     public Entry getEntry(Identifier biomeResLoc) {
@@ -94,6 +96,11 @@ public class BiomeDatabase {
         float getForestness();
 
         String getHeightmap();
+
+        /** The heightmap as its enum constant; prefer this over parsing {@link #getHeightmap()} in worldgen loops. */
+        default net.minecraft.world.level.levelgen.Heightmap.Types getHeightmapType() {
+            return net.minecraft.world.level.levelgen.Heightmap.Types.valueOf(getHeightmap().toUpperCase(java.util.Locale.ROOT));
+        }
 
         Function<Integer, Integer> getMultipass();
 
@@ -241,6 +248,19 @@ public class BiomeDatabase {
         @Override
         public String getHeightmap() {
             return heightmap;
+        }
+
+        private net.minecraft.world.level.levelgen.Heightmap.Types heightmapType;
+        private String heightmapTypeSource;
+
+        @Override
+        public net.minecraft.world.level.levelgen.Heightmap.Types getHeightmapType() {
+            // Memoized on the backing string so direct field writes (reset, copyTo) stay consistent.
+            if (heightmapType == null || !heightmap.equals(heightmapTypeSource)) {
+                heightmapTypeSource = heightmap;
+                heightmapType = EntryReader.super.getHeightmapType();
+            }
+            return heightmapType;
         }
 
         public void setMultipass(Function<Integer, Integer> multipass) {
@@ -556,6 +576,10 @@ public class BiomeDatabase {
 
     public String getHeightmap(Holder<Biome> biome) {
         return getEntry(biome).getHeightmap();
+    }
+
+    public net.minecraft.world.level.levelgen.Heightmap.Types getHeightmapType(Holder<Biome> biome) {
+        return getEntry(biome).getHeightmapType();
     }
 
     public Function<Integer, Integer> getMultipass(Holder<Biome> biome) {

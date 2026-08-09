@@ -52,12 +52,16 @@ public record SurfaceRootBlockStateModel(
             coreRadius = root.getRadius(state);
         if (coreRadius == 0) return;
 
-        int[] connections = new int[]{0, 0, 0, 0};
-        RootConnections.ConnectionLevel[] connectionLevels = RootConnections.PLACEHOLDER_CONNECTION_LEVELS.clone();
+        int[] connections;
+        RootConnections.ConnectionLevel[] connectionLevels;
 
         if (connectionsData instanceof RootConnections rootConnections) {
-            connections = rootConnections.getAllRadii();
+            // Clone: the connections object is the geometry cache key, so its array must stay untouched.
+            connections = rootConnections.getAllRadii().clone();
             connectionLevels = rootConnections.getConnectionLevels();
+        } else {
+            connections = new int[]{0, 0, 0, 0};
+            connectionLevels = RootConnections.PLACEHOLDER_CONNECTION_LEVELS;
         }
 
         for (int i = 0; i < connections.length; i++) {

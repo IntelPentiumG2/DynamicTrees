@@ -35,15 +35,28 @@ public class BiomeRadiusCoordinator implements RadiusCoordinator {
         return calcRadius(x, z, density);
     }
     
+    // One-entry memo: the disc solver asks about tightly clustered coordinates, which usually share
+    // a biome quart cell — this avoids re-running the multi-noise climate sampler for each query.
+    private long lastQuartKey = Long.MIN_VALUE;
+    private BiomePropertySelectorsHolder lastSelector;
+
+    private record BiomePropertySelectorsHolder(com.dtteam.dynamictrees.api.worldgen.BiomePropertySelectors.DensitySelector selector) {}
+
     private double calcDensity(int x, int z) {
-        final Holder<Biome> biome = this.level.getUncachedNoiseBiome((x + 8) >> 2, level.getMaxY() >> 2, (z + 8) >> 2); // Placement is offset by +8,+8
+        final int qx = (x + 8) >> 2;
+        final int qz = (z + 8) >> 2;
+        final long key = ((long) qx << 32) ^ (qz & 0xFFFFFFFFL);
+        if (key != lastQuartKey || lastSelector == null) {
+            final Holder<Biome> biome = this.level.getUncachedNoiseBiome(qx, level.getMaxY() >> 2, qz); // Placement is offset by +8,+8
+            lastSelector = new BiomePropertySelectorsHolder(BiomeDatabases
+                    .getDimensionalOrDefault(dimensionName)
+                    .getDensitySelector(biome));
+            lastQuartKey = key;
+        }
         final Vec3i pos = new Vec3i(x, 0, z);
         final RandomSource randomSource = this.level.getRandom();
         final MathContext mathContext = new MathContext(pos, randomSource);
-        return BiomeDatabases
-            .getDimensionalOrDefault(dimensionName)
-            .getDensitySelector(biome)
-            .getDensity(mathContext);
+        return lastSelector.selector().getDensity(mathContext);
     }
     
     private int calcRadius(int x, int z, double density) {

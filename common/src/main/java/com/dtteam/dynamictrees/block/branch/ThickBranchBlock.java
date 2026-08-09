@@ -35,18 +35,17 @@ public class ThickBranchBlock extends BasicBranchBlock implements Musable {
 
     protected static final VoxelShape[] trunkShapes = new VoxelShape[MAX_RADIUS_THICK];
 
-    public ThickBranchBlock(Identifier name, Properties properties) {
-        super(name, properties, RADIUS_DOUBLE, MAX_RADIUS_THICK);
-        precomputeTrunkShapes();
-    }
-
-    private void precomputeTrunkShapes(){
+    static {
         //This generates a couple unused shapes for the smaller radii, but I really don't care.
         for (int i=0; i<MAX_RADIUS_THICK; i++){
             double radius = (i+1) / 16.0;
             AABB coreAabb = new AABB(0.5 - radius, 0.0, 0.5 - radius, 0.5 + radius, 1.0, 0.5 + radius);
             trunkShapes[i] = Shapes.create(coreAabb);
         }
+    }
+
+    public ThickBranchBlock(Identifier name, Properties properties) {
+        super(name, properties, RADIUS_DOUBLE, MAX_RADIUS_THICK);
     }
 
     public TrunkShellBlock getTrunkShell() {

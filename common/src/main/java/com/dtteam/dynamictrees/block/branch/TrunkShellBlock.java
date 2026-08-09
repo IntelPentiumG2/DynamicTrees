@@ -196,7 +196,11 @@ public class TrunkShellBlock extends BlockWithDynamicHardness implements SimpleW
             CoordUtils.Surround dir = ((TrunkShellBlock) block).getMuseDir(museState, musePos);
             if (dir == null) return null; //should never happen but there's no reason not to check anyway.
             final Vec3i offset = dir.getOffset();
-            if (new Vec3(offset.getX(), offset.getY(), offset.getZ()).add(new Vec3(museDir.getOffset().getX(), museDir.getOffset().getY(), museDir.getOffset().getZ())).lengthSqr() > 2.25) {
+            final Vec3i museOffset = museDir.getOffset();
+            final int dx = offset.getX() + museOffset.getX();
+            final int dy = offset.getY() + museOffset.getY();
+            final int dz = offset.getZ() + museOffset.getZ();
+            if (dx * dx + dy * dy + dz * dz > 2) { // squared length > 2.25 for integer offsets
                 return (((TrunkShellBlock) block).getMuseUnchecked(level, museState, musePos, originalPos));
             }
         }
@@ -234,10 +238,24 @@ public class TrunkShellBlock extends BlockWithDynamicHardness implements SimpleW
         this.scheduleUpdateTick(level, pos);
     }
 
+    /** Shapes only depend on the muse's radius and relative offset, of which there are few, so they cache well. */
+    private static final java.util.concurrent.ConcurrentHashMap<Integer, VoxelShape> SHAPE_CACHE = new java.util.concurrent.ConcurrentHashMap<>();
+
     @Override
     public VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
-        return NullUtils.applyIfNonnull(this.getMuse(level, state, pos), muse ->
-                Shapes.create(muse.state.getShape(level, muse.pos).bounds().move(muse.museOffset)), Shapes.empty());
+        // Unchecked: shape queries run during meshing and collision, where scheduling repair ticks
+        // is unsafe; invalid shells are still repaired via neighborChanged and getMuse callers.
+        final ShellMuse muse = this.getMuseUnchecked(level, state, pos);
+        if (muse == null) return Shapes.empty();
+        if (muse.getRadius() > 8) { // Thick trunk shapes are position-independent, so the result only varies by radius and offset.
+            final int key = muse.getRadius()
+                    | ((muse.museOffset.getX() + 2) << 6)
+                    | ((muse.museOffset.getY() + 2) << 9)
+                    | ((muse.museOffset.getZ() + 2) << 12);
+            return SHAPE_CACHE.computeIfAbsent(key, k ->
+                    Shapes.create(muse.state.getShape(level, muse.pos).bounds().move(muse.museOffset)));
+        }
+        return Shapes.create(muse.state.getShape(level, muse.pos).bounds().move(muse.museOffset));
     }
 
     @Override

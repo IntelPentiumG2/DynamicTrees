@@ -35,6 +35,9 @@ public final class CoordUtils {
 
     public static final Direction[] HORIZONTALS = {Direction.SOUTH, Direction.WEST, Direction.NORTH, Direction.EAST};
 
+    /** All six directions without the defensive copy {@link Direction#values()} makes on every call. */
+    public static final Direction[] DIRECTIONS = Direction.values();
+
     public enum Surround implements StringRepresentable {
         N("n", Direction.NORTH),
         NW("nw", Direction.NORTH, Direction.WEST),

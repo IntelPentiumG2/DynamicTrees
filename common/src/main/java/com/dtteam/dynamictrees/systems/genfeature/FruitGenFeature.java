@@ -73,9 +73,7 @@ public class FruitGenFeature extends GenFeature {
             final float fruitingFactor = fruit.seasonalFruitProductionFactor(context.levelContext(), rootPos);
 
             if (fruitingFactor > fruit.getRequiredProductionFactor() && fruitingFactor > level.getRandom().nextFloat()) {
-                final FindEndsNode endFinder = new FindEndsNode();
-                TreeHelper.startAnalysisFromRoot(level, rootPos, new MapSignal(endFinder));
-                final List<BlockPos> endPoints = endFinder.getEnds();
+                final List<BlockPos> endPoints = context.endPoints();
                 int qty = configuration.get(QUANTITY);
                 if (!endPoints.isEmpty()) {
                     for (int i = 0; i < qty; i++) {
